@@ -10,13 +10,22 @@ const rotasPlanos = require('./routes/planos');
 const PORT = Number(process.env.PORT) || 5000;
 const MONGODB_URI =
   process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/greenherb';
-const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
+const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
+
+function configurarOrigemCors(valor) {
+  if (!valor || valor === '*') return '*';
+  const lista = valor
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+  return lista.length > 1 ? lista : lista[0] || '*';
+}
 
 const app = express();
 
 app.use(
   cors({
-    origin: CORS_ORIGIN,
+    origin: configurarOrigemCors(CORS_ORIGIN),
     credentials: false,
   })
 );

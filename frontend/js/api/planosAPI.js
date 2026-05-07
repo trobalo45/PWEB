@@ -1,4 +1,4 @@
-const BASE_URL = 'http://localhost:5000';
+const API_BASE = `http://${window.location.hostname}:5000/api`;
 const CHAVE_TOKEN = 'greenherb.token';
 
 const ERVA_PARA_API = {
@@ -31,7 +31,7 @@ function cabecalhos() {
 }
 
 async function pedido(caminho, opcoes = {}) {
-  const resposta = await fetch(`${BASE_URL}${caminho}`, {
+  const resposta = await fetch(`${API_BASE}${caminho}`, {
     ...opcoes,
     headers: { ...cabecalhos(), ...(opcoes.headers || {}) },
   });
@@ -147,17 +147,17 @@ export async function init() {
 }
 
 export async function listarPlanos() {
-  const lista = await pedido('/api/planos');
+  const lista = await pedido('/planos');
   return (lista || []).map(paraFrontend);
 }
 
 export async function obterPlano(id) {
-  const plano = await pedido(`/api/planos/${encodeURIComponent(id)}`);
+  const plano = await pedido(`/planos/${encodeURIComponent(id)}`);
   return paraFrontend(plano);
 }
 
 export async function guardarPlano(plano) {
-  const criado = await pedido('/api/planos', {
+  const criado = await pedido('/planos', {
     method: 'POST',
     body: JSON.stringify(paraAPI(plano)),
   });
@@ -165,20 +165,20 @@ export async function guardarPlano(plano) {
 }
 
 export async function eliminarPlano(id) {
-  await pedido(`/api/planos/${encodeURIComponent(id)}`, {
+  await pedido(`/planos/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
 }
 
 export async function login(email, password) {
-  return pedido('/api/auth/login', {
+  return pedido('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
 }
 
 export async function registar(dados) {
-  return pedido('/api/auth/register', {
+  return pedido('/auth/register', {
     method: 'POST',
     body: JSON.stringify(dados),
   });
