@@ -76,6 +76,10 @@ export async function montar(elemento) {
           </div>
         </div>
       </form>
+
+      <p class="aviso-sem-conta">
+        Não tens conta? Fala com o administrador do sistema.
+      </p>
     </div>
   `;
 
