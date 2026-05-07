@@ -1,4 +1,4 @@
-import { guardarPlano } from '../storage/planosDB.js';
+import { guardarPlano, modoAtivo } from '../storage/planosStore.js';
 
 const TIPOS = [
   { id: 'regular', rotulo: 'Regular' },
@@ -68,6 +68,10 @@ function escaparHTML(texto) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function rotuloDestino() {
+  return modoAtivo() === 'remoto' ? 'Guardado na API' : 'Guardado localmente';
 }
 
 function rotuloTipo(id) {
@@ -539,7 +543,7 @@ function renderizar(elemento) {
           Preencha os passos seguintes para registar um novo plano.
         </p>
       </div>
-      <span class="chip">Guardado localmente</span>
+      <span class="chip">${escaparHTML(rotuloDestino())}</span>
     </div>
 
     <div class="wizard">

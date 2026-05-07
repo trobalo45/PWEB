@@ -1,10 +1,13 @@
-import { init as initDB } from './storage/planosDB.js';
+import { init as initStore } from './storage/planosStore.js';
 import * as vistaPlanos from './views/planos.js';
 import * as vistaNovoPlano from './views/novoPlano.js';
 import * as vistaDetalhePlano from './views/detalhePlano.js';
+import * as vistaLogin from './views/login.js';
 
 const CHAVE_ULTIMA_VISTA = 'greenherb.ultimaVista';
 const CHAVE_MODO_UI = 'greenherb.modoUI';
+const CHAVE_TOKEN = 'greenherb.token';
+const CHAVE_UTILIZADOR = 'greenherb.utilizador';
 
 const ROTAS = {
   planos: {
@@ -48,6 +51,11 @@ const ROTAS = {
     rotulo: 'Auditoria',
     grupo: 'Sistema',
     montar: montarEmDesenvolvimento,
+  },
+  login: {
+    rotulo: 'Iniciar sessão',
+    grupo: 'Sistema',
+    montar: vistaLogin.montar,
   },
 };
 
@@ -134,6 +142,11 @@ async function navegar() {
     return;
   }
 
+  if (!temToken() && nome !== 'login') {
+    window.location.hash = '#login';
+    return;
+  }
+
   const conteudo = document.getElementById('conteudo');
   if (!conteudo) return;
 
@@ -142,7 +155,10 @@ async function navegar() {
   atualizarTitulo(nome);
 
   try {
-    localStorage.setItem(CHAVE_ULTIMA_VISTA, window.location.hash.replace(/^#/, ''));
+    localStorage.setItem(
+      CHAVE_ULTIMA_VISTA,
+      window.location.hash.replace(/^#/, '')
+    );
   } catch {
     /* localStorage indisponível, ignorar */
   }
@@ -207,6 +223,101 @@ function configurarIndicadorLigacao() {
   atualizar();
 }
 
+function obterIniciais(nome) {
+  if (!nome) return '?';
+  const partes = nome.trim().split(/\s+/);
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+function obterUtilizadorGuardado() {
+  try {
+    const json = localStorage.getItem(CHAVE_UTILIZADOR);
+    if (!json) return null;
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+function temToken() {
+  try {
+    return Boolean(localStorage.getItem(CHAVE_TOKEN));
+  } catch {
+    return false;
+  }
+}
+
+function terminarSessao() {
+  try {
+    localStorage.removeItem(CHAVE_TOKEN);
+    localStorage.removeItem(CHAVE_UTILIZADOR);
+  } catch {
+    /* ignorar */
+  }
+  window.dispatchEvent(new CustomEvent('greenherb:auth-mudou'));
+  if (window.location.hash !== '#login') {
+    window.location.hash = '#login';
+  } else {
+    navegar();
+  }
+}
+
+function configurarAreaUtilizador() {
+  const container = document.querySelector('.topbar-right');
+  if (!container) return;
+
+  const avatar = container.querySelector('.avatar');
+  if (avatar) avatar.remove();
+  const antigo = container.querySelector('[data-area-utilizador]');
+  if (antigo) antigo.remove();
+
+  const wrapper = document.createElement('div');
+  wrapper.dataset.areaUtilizador = 'true';
+  wrapper.style.display = 'inline-flex';
+  wrapper.style.alignItems = 'center';
+  wrapper.style.gap = '8px';
+
+  if (temToken()) {
+    const utilizador = obterUtilizadorGuardado();
+    const iniciais = obterIniciais(utilizador?.nome || 'Utilizador');
+    const nomeTitulo = utilizador
+      ? `${utilizador.nome} (${utilizador.perfil})`
+      : 'Sessão iniciada';
+
+    wrapper.innerHTML = `
+      <span
+        class="avatar"
+        title="${escapar(nomeTitulo)}"
+        aria-label="${escapar(nomeTitulo)}"
+      >${escapar(iniciais)}</span>
+      <button
+        type="button"
+        class="btn btn-ghost"
+        data-acao="terminar-sessao"
+        style="color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.25);"
+      >
+        Sair
+      </button>
+    `;
+    container.appendChild(wrapper);
+    wrapper
+      .querySelector('[data-acao="terminar-sessao"]')
+      .addEventListener('click', terminarSessao);
+  } else {
+    wrapper.innerHTML = `
+      <a
+        href="#login"
+        class="btn btn-primario"
+        style="background-color: var(--color-accent); color: var(--color-topbar-sidebar); border-color: var(--color-accent);"
+      >
+        Entrar
+      </a>
+    `;
+    container.appendChild(wrapper);
+  }
+}
+
 function carregarPreferenciasUI() {
   try {
     const modo = localStorage.getItem(CHAVE_MODO_UI);
@@ -220,11 +331,15 @@ function carregarPreferenciasUI() {
 
 function definirRotaInicial() {
   if (window.location.hash) return;
+  if (!temToken()) {
+    window.location.hash = '#login';
+    return;
+  }
   try {
     const ultima = localStorage.getItem(CHAVE_ULTIMA_VISTA);
     if (ultima) {
       const nome = ultima.split('/')[0];
-      if (ROTAS[nome]) {
+      if (ROTAS[nome] && nome !== 'login') {
         window.location.hash = `#${ultima}`;
         return;
       }
@@ -238,14 +353,20 @@ function definirRotaInicial() {
 async function arrancar() {
   carregarPreferenciasUI();
   configurarIndicadorLigacao();
+  configurarAreaUtilizador();
 
   try {
-    await initDB();
+    await initStore();
   } catch (erro) {
-    console.error('Falha ao inicializar a base de dados local:', erro);
+    console.error('Falha ao inicializar o armazenamento:', erro);
   }
 
   window.addEventListener('hashchange', navegar);
+  window.addEventListener('greenherb:auth-mudou', () => {
+    configurarAreaUtilizador();
+    navegar();
+  });
+
   definirRotaInicial();
   await navegar();
 }

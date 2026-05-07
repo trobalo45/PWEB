@@ -1,0 +1,378 @@
+openapi: 3.0.3
+info:
+  title: GreenHerb API
+  description: |
+    API REST para a gestão de planos de cultivo da estufa GreenHerb.
+    Projeto académico — Sprint 2.
+  version: 0.1.0
+  contact:
+    name: Equipa GreenHerb
+servers:
+  - url: http://localhost:5000
+    description: Servidor de desenvolvimento local
+tags:
+  - name: Autenticação
+    description: Registo e início de sessão.
+  - name: Planos
+    description: CRUD de planos de cultivo.
+  - name: Sistema
+    description: Verificação de saúde da API.
+paths:
+  /api/health:
+    get:
+      tags: [Sistema]
+      summary: Verificação de saúde
+      responses:
+        '200':
+          description: API ativa
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  estado:
+                    type: string
+                    example: ok
+                  mongo:
+                    type: string
+                    example: ligado
+  /api/auth/register:
+    post:
+      tags: [Autenticação]
+      summary: Registar novo utilizador
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Utilizador criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/auth/login:
+    post:
+      tags: [Autenticação]
+      summary: Iniciar sessão
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Sessão iniciada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/planos:
+    get:
+      tags: [Planos]
+      summary: Listar planos
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de planos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlanoCultivo'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Planos]
+      summary: Criar plano
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanoCultivoInput'
+      responses:
+        '201':
+          description: Plano criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanoCultivo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/planos/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          example: 65a1b2c3d4e5f60718293a4b
+    get:
+      tags: [Planos]
+      summary: Detalhe de um plano
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Plano encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanoCultivo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [Planos]
+      summary: Editar plano (criador ou Administrador)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanoCultivoInput'
+      responses:
+        '200':
+          description: Plano atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanoCultivo'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Planos]
+      summary: Eliminar plano (apenas Administrador)
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Plano eliminado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    BadRequest:
+      description: Pedido inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Autenticação requerida ou token inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Sem permissões para a operação
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Erro interno do servidor
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      properties:
+        erro:
+          type: string
+          example: Mensagem descritiva do erro.
+    Utilizador:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 65a1b2c3d4e5f60718293a4b
+        nome:
+          type: string
+          example: Ana Administradora
+        email:
+          type: string
+          format: email
+          example: admin@greenherb.local
+        perfil:
+          type: string
+          enum: [Técnico, Responsável, Administrador]
+          example: Administrador
+        ativo:
+          type: boolean
+          example: true
+        dataCriacao:
+          type: string
+          format: date-time
+    RegisterRequest:
+      type: object
+      required: [nome, email, password]
+      properties:
+        nome:
+          type: string
+          example: Tânia Técnica
+        email:
+          type: string
+          format: email
+          example: tecnico@greenherb.local
+        password:
+          type: string
+          format: password
+          minLength: 6
+          example: tecnico123
+        perfil:
+          type: string
+          enum: [Técnico, Responsável, Administrador]
+          default: Técnico
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: admin@greenherb.local
+        password:
+          type: string
+          format: password
+          example: admin123
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT a usar no header Authorization.
+        utilizador:
+          $ref: '#/components/schemas/Utilizador'
+    DadosRegular:
+      type: object
+      required:
+        - tempMin
+        - tempMax
+        - humidadeMin
+        - humidadeMax
+        - luminosidadeMin
+        - luminosidadeMax
+        - duracaoCiclo
+        - frequenciaRega
+        - volumeRega
+        - frequenciaFertilizacao
+      properties:
+        tempMin: { type: number }
+        tempMax: { type: number }
+        humidadeMin: { type: number, minimum: 0, maximum: 100 }
+        humidadeMax: { type: number, minimum: 0, maximum: 100 }
+        luminosidadeMin: { type: number, minimum: 0 }
+        luminosidadeMax: { type: number, minimum: 0 }
+        duracaoCiclo: { type: integer, minimum: 1 }
+        frequenciaRega: { type: integer, minimum: 1 }
+        volumeRega: { type: number, minimum: 0 }
+        frequenciaFertilizacao: { type: integer, minimum: 1 }
+    DadosEmergencia:
+      type: object
+      required: [tipoIntervencao, intervaloMinimo, dosagem]
+      properties:
+        tipoIntervencao: { type: string }
+        intervaloMinimo: { type: integer, minimum: 1 }
+        dosagem: { type: string }
+        notas: { type: string }
+    DadosPontual:
+      type: object
+      required: [nomeResponsavel, justificacao, dataAutorizacao]
+      properties:
+        nomeResponsavel: { type: string }
+        justificacao: { type: string, minLength: 10 }
+        dataAutorizacao: { type: string, format: date-time }
+    PlanoCultivoInput:
+      type: object
+      required: [tipo, erva]
+      properties:
+        tipo:
+          type: string
+          enum: [regular, emergencia, pontual]
+        erva:
+          type: string
+          enum: [manjericão, hortelã, alecrim, tomilho]
+        estado:
+          type: string
+          enum: [ativo, concluído, comprometido]
+          default: ativo
+        dadosRegular:
+          $ref: '#/components/schemas/DadosRegular'
+        dadosEmergencia:
+          $ref: '#/components/schemas/DadosEmergencia'
+        dadosPontual:
+          $ref: '#/components/schemas/DadosPontual'
+    PlanoCultivo:
+      allOf:
+        - $ref: '#/components/schemas/PlanoCultivoInput'
+        - type: object
+          properties:
+            _id:
+              type: string
+              example: 65a1b2c3d4e5f60718293a4b
+            criadoPor:
+              oneOf:
+                - type: string
+                - $ref: '#/components/schemas/Utilizador'
+            dataCriacao:
+              type: string
+              format: date-time

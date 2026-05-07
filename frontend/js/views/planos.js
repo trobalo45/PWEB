@@ -1,4 +1,4 @@
-import { listarPlanos, eliminarPlano } from '../storage/planosDB.js';
+import { listarPlanos, eliminarPlano } from '../storage/planosStore.js';
 
 const CHAVE_VISTA = 'greenherb.vistaPlanos';
 
@@ -32,6 +32,11 @@ function classeChipTipo(tipo) {
   if (tipo === 'emergencia') return 'chip-tipo-emergencia';
   if (tipo === 'pontual') return 'chip-tipo-pontual';
   return 'chip-tipo-regular';
+}
+
+function rotuloOrigem(id) {
+  const ehObjectId = typeof id === 'string' && /^[a-f0-9]{24}$/i.test(id);
+  return ehObjectId ? 'Guardado na API' : 'Guardado localmente';
 }
 
 function escaparHTML(texto) {
@@ -128,7 +133,7 @@ function renderizarCartao(plano) {
       </div>
       <div class="cartao-plano-tipo">
         <span class="chip ${tipoClasse}">${escaparHTML(tipoTexto)}</span>
-        <span class="chip">Guardado localmente</span>
+        <span class="chip">${escaparHTML(rotuloOrigem(plano.id))}</span>
       </div>
       <div class="cartao-plano-meta">
         <span>Criado em <span class="mono">${escaparHTML(
@@ -161,6 +166,9 @@ function renderizarLinhaTabela(plano) {
       <td>
         <span class="chip chip-estado-ativo">${escaparHTML(estadoTexto)}</span>
       </td>
+      <td>
+        <span class="chip">${escaparHTML(rotuloOrigem(plano.id))}</span>
+      </td>
       <td class="celula-acoes">
         <button type="button" class="btn btn-perigo" data-acao="eliminar">
           Eliminar
@@ -188,6 +196,7 @@ function renderizarTabela(planos) {
             <th>Tipo</th>
             <th>Data de criação</th>
             <th>Estado</th>
+            <th>Origem</th>
             <th aria-label="Ações"></th>
           </tr>
         </thead>
@@ -283,7 +292,7 @@ export async function montar(elemento) {
     if (botaoEliminar) {
       evento.stopPropagation();
       const linha = botaoEliminar.closest('.linha-plano');
-      const id = Number(linha.dataset.id);
+      const id = linha.dataset.id;
       const confirmar = window.confirm(
         'Tem a certeza de que pretende eliminar este plano?'
       );
@@ -291,7 +300,7 @@ export async function montar(elemento) {
       botaoEliminar.disabled = true;
       try {
         await eliminarPlano(id);
-        planos = planos.filter((p) => p.id !== id);
+        planos = planos.filter((p) => String(p.id) !== String(id));
         pintar();
       } catch (erro) {
         botaoEliminar.disabled = false;

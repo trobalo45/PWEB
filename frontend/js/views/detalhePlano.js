@@ -1,4 +1,4 @@
-import { obterPlano } from '../storage/planosDB.js';
+import { obterPlano } from '../storage/planosStore.js';
 
 const ROTULO_TIPO = {
   regular: 'Regular',
@@ -27,6 +27,11 @@ function classeChipTipo(tipo) {
   if (tipo === 'emergencia') return 'chip-tipo-emergencia';
   if (tipo === 'pontual') return 'chip-tipo-pontual';
   return 'chip-tipo-regular';
+}
+
+function rotuloOrigem(id) {
+  const ehObjectId = typeof id === 'string' && /^[a-f0-9]{24}$/i.test(id);
+  return ehObjectId ? 'Guardado na API' : 'Guardado localmente';
 }
 
 function formatarData(iso) {
@@ -224,7 +229,7 @@ export async function montar(elemento, _rota, params = []) {
           <span class="chip ${classeChipTipo(plano.tipo)}">${escaparHTML(
     tipoTexto
   )}</span>
-          <span class="chip">Guardado localmente</span>
+          <span class="chip">${escaparHTML(rotuloOrigem(plano.id))}</span>
         </p>
       </div>
       <a href="#planos" class="btn btn-secundario">← Voltar</a>

@@ -106,9 +106,11 @@ export function listarPlanos() {
 }
 
 export function eliminarPlano(id) {
+  const numerico = Number(id);
+  const chave = Number.isFinite(numerico) ? numerico : id;
   return comTransacao('readwrite', (store) =>
     new Promise((resolve, reject) => {
-      const pedido = store.delete(id);
+      const pedido = store.delete(chave);
       pedido.onsuccess = () => resolve();
       pedido.onerror = () =>
         reject(pedido.error || new Error('Erro ao eliminar o plano.'));
