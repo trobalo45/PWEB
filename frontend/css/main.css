@@ -893,6 +893,343 @@ button {
   color: var(--color-text-tertiary);
 }
 
+/* ============ LOGIN FULL-SCREEN ============ */
+
+body[data-sem-chrome="true"] .topbar,
+body[data-sem-chrome="true"] .sidebar {
+  display: none !important;
+}
+
+body[data-sem-chrome="true"] .layout {
+  padding-top: 0;
+  min-height: 100vh;
+}
+
+body[data-sem-chrome="true"] .conteudo {
+  margin-left: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: var(--color-topbar-sidebar);
+}
+
+.ecra-login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background-color: var(--color-topbar-sidebar);
+}
+
+.cartao-login {
+  background-color: var(--color-card-bg);
+  width: 100%;
+  max-width: 380px;
+  padding: 32px;
+  border-radius: var(--radius-lg);
+  border: 0.5px solid var(--color-border-card);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+}
+
+.logo-login {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.logo-folha {
+  font-size: 26px;
+  color: var(--color-accent);
+  line-height: 1;
+}
+
+.logo-marca-login {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.logo-herb-dark {
+  color: var(--color-topbar-sidebar);
+}
+
+.login-titulo {
+  margin: 0 0 4px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.login-subtitulo {
+  margin: 0 0 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.btn-login-primario {
+  width: 100%;
+  background-color: var(--color-accent);
+  color: var(--color-topbar-sidebar);
+  border: none;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 14px;
+  margin-top: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-login-primario:hover:not(:disabled) {
+  background-color: #6cbf91;
+}
+
+.btn-login-primario:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ============ BADGES DE ESTADO ADICIONAIS ============ */
+
+.chip-estado-concluido {
+  background-color: rgba(80, 130, 200, 0.16);
+  color: #2c4f7a;
+}
+
+.chip-estado-comprometido {
+  background-color: rgba(192, 57, 43, 0.16);
+  color: #a52a1d;
+}
+
+/* ============ CLASSIFICAÇÃO DE ALERTAS ============ */
+
+.chip-classificacao-info {
+  background-color: rgba(80, 130, 200, 0.16);
+  color: #2c4f7a;
+  text-transform: capitalize;
+}
+
+.chip-classificacao-aviso {
+  background-color: rgba(212, 154, 23, 0.18);
+  color: #8a6210;
+  text-transform: capitalize;
+}
+
+.chip-classificacao-critico {
+  background-color: rgba(192, 57, 43, 0.18);
+  color: #a52a1d;
+  text-transform: capitalize;
+}
+
+/* ============ MODAL ============ */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 1000;
+}
+
+.modal {
+  background-color: var(--color-card-bg);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  border: 0.5px solid var(--color-border-card);
+}
+
+.modal h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* ============ LISTA DE TAREFAS ============ */
+
+.lista-tarefas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lista-tarefas li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 0.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-card-bg);
+}
+
+/* ============ DASHBOARD ============ */
+
+.metricas-grelha {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.metric-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background-color: var(--color-card-bg);
+  padding: 16px;
+  border: 0.5px solid var(--color-border-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.metric-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.metric-icon-verde {
+  background-color: rgba(126, 207, 160, 0.18);
+  color: #2b6a47;
+}
+
+.metric-icon-azul {
+  background-color: rgba(80, 130, 200, 0.16);
+  color: #2c4f7a;
+}
+
+.metric-icon-ambar {
+  background-color: rgba(212, 154, 23, 0.18);
+  color: #8a6210;
+}
+
+.metric-icon-vermelho {
+  background-color: rgba(192, 57, 43, 0.18);
+  color: #a52a1d;
+}
+
+.metric-rotulo {
+  margin: 0 0 2px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.metric-numero {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.estado-sistema {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border: 0.5px solid var(--color-border-card);
+  border-radius: var(--radius-md);
+  background-color: var(--color-card-bg);
+}
+
+/* ============ NOTIFICAÇÃO DE ALERTAS GERADOS ============ */
+
+.notificacao-alertas {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  background-color: var(--color-card-bg);
+  border: 0.5px solid var(--color-border-card);
+  border-radius: var(--radius-md);
+}
+
+/* ============ AVISO DE LOTE COMPROMETIDO ============ */
+
+.aviso-comprometido {
+  margin: 16px 0 0;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  background-color: rgba(192, 57, 43, 0.06);
+  border-left: 2px solid var(--color-error);
+  border-radius: var(--radius-sm);
+}
+
+/* ============ TOGGLE BOOLEANO (modal editar utilizador) ============ */
+
+.toggle-ativo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.toggle-ativo input[type='checkbox'] {
+  width: 36px;
+  height: 20px;
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  position: relative;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.toggle-ativo input[type='checkbox']::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background-color: white;
+  transition: transform 0.15s ease;
+}
+
+.toggle-ativo input[type='checkbox']:checked {
+  background-color: var(--color-accent);
+}
+
+.toggle-ativo input[type='checkbox']:checked::after {
+  transform: translateX(16px);
+}
+
+.toggle-ativo-rotulo {
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+/* ============ ÍCONES NA SIDEBAR ============ */
+
+.grupo-nav a i.ti {
+  margin-right: 6px;
+  font-size: 16px;
+  vertical-align: middle;
+}
+
 /* ============ EM DESENVOLVIMENTO ============ */
 
 .em-desenvolvimento {

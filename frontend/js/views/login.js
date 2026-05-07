@@ -1,4 +1,5 @@
 import { login as apiLogin } from '../api/planosAPI.js';
+import { loginLocal } from '../storage/utilizadoresStore.js';
 
 const CHAVE_TOKEN = 'greenherb.token';
 const CHAVE_UTILIZADOR = 'greenherb.utilizador';
@@ -29,19 +30,19 @@ function guardarSessao(resposta) {
 
 export async function montar(elemento) {
   elemento.innerHTML = `
-    <div class="cabecalho-vista">
-      <div>
-        <h1>Iniciar sessão</h1>
-        <p class="subtitulo">
-          Acesso à API GreenHerb. Sem sessão, os planos ficam apenas neste
-          dispositivo.
-        </p>
-      </div>
-    </div>
+    <div class="ecra-login">
+      <div class="cartao-login">
+        <div class="logo-login">
+          <i class="ti ti-leaf logo-folha" aria-hidden="true"></i>
+          <span class="logo-marca-login">
+            <span class="logo-green">Green</span><span class="logo-herb-dark">Herb</span>
+          </span>
+        </div>
 
-    <div class="wizard">
-      <form id="form-login" novalidate>
-        <div class="cartao-formulario">
+        <h1 class="login-titulo">Bem-vindo de volta</h1>
+        <p class="login-subtitulo">Inicia sessão para aceder à plataforma</p>
+
+        <form id="form-login" novalidate>
           <div id="mensagem-login"></div>
 
           <div class="campo" data-campo="email">
@@ -67,19 +68,14 @@ export async function montar(elemento) {
             />
             <p class="mensagem-erro" hidden></p>
           </div>
-        </div>
 
-        <div class="barra-acoes">
-          <a href="#planos" class="btn btn-ghost">Cancelar</a>
-          <div class="barra-acoes-direita">
-            <button type="submit" class="btn btn-primario">Entrar</button>
-          </div>
-        </div>
-      </form>
+          <button type="submit" class="btn-login-primario">Entrar</button>
+        </form>
 
-      <p class="aviso-sem-conta">
-        Não tens conta? Fala com o administrador do sistema.
-      </p>
+        <p class="aviso-sem-conta">
+          Não tens conta? Fala com o administrador do sistema.
+        </p>
+      </div>
     </div>
   `;
 
@@ -132,10 +128,10 @@ export async function montar(elemento) {
     botao.textContent = 'A entrar…';
 
     try {
-      const resposta = await apiLogin(email, password);
+      const resposta = await tentarLogin(email, password);
       guardarSessao(resposta);
       window.dispatchEvent(new CustomEvent('greenherb:auth-mudou'));
-      window.location.hash = '#planos';
+      window.location.hash = '#dashboard';
     } catch (erro) {
       botao.disabled = false;
       botao.textContent = 'Entrar';
@@ -146,4 +142,39 @@ export async function montar(elemento) {
       `;
     }
   });
+}
+
+async function tentarLogin(email, password) {
+  console.log('[login] A tentar login via API…', { email });
+  try {
+    const resposta = await apiLogin(email, password);
+    console.log('[login] API respondeu com sucesso:', {
+      utilizador: resposta?.utilizador?.email,
+      perfil: resposta?.utilizador?.perfil,
+      ativo: resposta?.utilizador?.ativo,
+    });
+    return resposta;
+  } catch (erroAPI) {
+    console.log('[login] Erro de login via API:', {
+      estado: erroAPI?.estado,
+      mensagem: erroAPI?.message,
+    });
+    if (erroAPI?.estado === 401) {
+      const msg = String(erroAPI.message || '').toLowerCase();
+      if (msg.includes('desativada')) {
+        console.log('[login] Servidor sinalizou conta desativada.');
+        throw new Error(
+          'Conta desativada. Contacta o administrador do sistema.'
+        );
+      }
+      console.log('[login] Servidor sinalizou credenciais inválidas.');
+      throw new Error('Credenciais inválidas.');
+    }
+    console.log(
+      '[login] API indisponível (estado:',
+      erroAPI?.estado,
+      ') — a usar login local…'
+    );
+    return await loginLocal(email, password);
+  }
 }

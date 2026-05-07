@@ -72,7 +72,8 @@ router.post('/login', async (req, res) => {
       email: String(email).toLowerCase(),
     }).select('+password');
 
-    if (!utilizador || !utilizador.ativo) {
+    if (!utilizador) {
+      console.log('[login] Utilizador não encontrado para email:', email);
       return res
         .status(401)
         .json({ erro: 'Credenciais inválidas.' });
@@ -80,10 +81,29 @@ router.post('/login', async (req, res) => {
 
     const valido = await utilizador.compararPassword(password);
     if (!valido) {
+      console.log('[login] Password inválida para:', utilizador.email);
       return res
         .status(401)
         .json({ erro: 'Credenciais inválidas.' });
     }
+
+    console.log(
+      '[login] Utilizador encontrado:',
+      utilizador.email,
+      'ativo:',
+      utilizador.ativo,
+      'tipo:',
+      typeof utilizador.ativo
+    );
+
+    if (!utilizador.ativo) {
+      console.log('[login] Login bloqueado — conta desativada');
+      return res.status(401).json({
+        erro: 'Conta desativada. Contacta o administrador do sistema.',
+      });
+    }
+
+    console.log('[login] Login autorizado para:', utilizador.email);
 
     const token = assinarToken(utilizador);
     return res.json({

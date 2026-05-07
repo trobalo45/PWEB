@@ -3,6 +3,16 @@ import * as vistaPlanos from './views/planos.js';
 import * as vistaNovoPlano from './views/novoPlano.js';
 import * as vistaDetalhePlano from './views/detalhePlano.js';
 import * as vistaLogin from './views/login.js';
+import * as vistaLotes from './views/lotes.js';
+import * as vistaNovoLote from './views/novoLote.js';
+import * as vistaDetalheLote from './views/detalheLote.js';
+import * as vistaTarefas from './views/tarefas.js';
+import * as vistaMedicoes from './views/medicoes.js';
+import * as vistaAlertas from './views/alertas.js';
+import * as vistaRelatorios from './views/relatorios.js';
+import * as vistaAuditoria from './views/auditoria.js';
+import * as vistaUtilizadores from './views/utilizadores.js';
+import * as vistaDashboard from './views/dashboard.js';
 
 const CHAVE_ULTIMA_VISTA = 'greenherb.ultimaVista';
 const CHAVE_MODO_UI = 'greenherb.modoUI';
@@ -10,6 +20,11 @@ const CHAVE_TOKEN = 'greenherb.token';
 const CHAVE_UTILIZADOR = 'greenherb.utilizador';
 
 const ROTAS = {
+  dashboard: {
+    rotulo: 'Dashboard',
+    grupo: 'Geral',
+    montar: vistaDashboard.montar,
+  },
   planos: {
     rotulo: 'Planos',
     grupo: 'Gestão',
@@ -30,36 +45,60 @@ const ROTAS = {
   lotes: {
     rotulo: 'Lotes',
     grupo: 'Gestão',
-    montar: montarEmDesenvolvimento,
+    montar: vistaLotes.montar,
+  },
+  novoLote: {
+    rotulo: 'Novo lote',
+    grupo: 'Gestão',
+    paiNav: 'lotes',
+    montar: vistaNovoLote.montar,
+  },
+  detalheLote: {
+    rotulo: 'Detalhe do lote',
+    grupo: 'Gestão',
+    paiNav: 'lotes',
+    montar: vistaDetalheLote.montar,
+  },
+  tarefas: {
+    rotulo: 'Tarefas',
+    grupo: 'Gestão',
+    montar: vistaTarefas.montar,
   },
   medicoes: {
     rotulo: 'Medições',
     grupo: 'Gestão',
-    montar: montarEmDesenvolvimento,
+    montar: vistaMedicoes.montar,
   },
   alertas: {
     rotulo: 'Alertas',
     grupo: 'Sistema',
-    montar: montarEmDesenvolvimento,
+    montar: vistaAlertas.montar,
   },
   relatorios: {
     rotulo: 'Relatórios',
     grupo: 'Sistema',
-    montar: montarEmDesenvolvimento,
+    montar: vistaRelatorios.montar,
   },
   auditoria: {
     rotulo: 'Auditoria',
     grupo: 'Sistema',
-    montar: montarEmDesenvolvimento,
+    montar: vistaAuditoria.montar,
+  },
+  utilizadores: {
+    rotulo: 'Utilizadores',
+    grupo: 'Sistema',
+    montar: vistaUtilizadores.montar,
+    apenasAdmin: true,
   },
   login: {
     rotulo: 'Iniciar sessão',
     grupo: 'Sistema',
     montar: vistaLogin.montar,
+    semChrome: true,
   },
 };
 
-const ROTA_INICIAL = 'planos';
+const ROTA_INICIAL = 'dashboard';
 
 function obterRota() {
   const hash = window.location.hash.replace(/^#/, '').trim();
@@ -102,26 +141,6 @@ function atualizarTitulo(rota) {
   }
 }
 
-async function montarEmDesenvolvimento(elemento, rota) {
-  const config = ROTAS[rota];
-  elemento.innerHTML = `
-    <div class="cabecalho-vista">
-      <div>
-        <h1>${escapar(config?.rotulo || 'Em desenvolvimento')}</h1>
-        <p class="subtitulo">Esta secção será disponibilizada num próximo sprint.</p>
-      </div>
-    </div>
-    <div class="em-desenvolvimento">
-      <h1>Em desenvolvimento</h1>
-      <p>
-        A funcionalidade de ${escapar(
-          (config?.rotulo || '').toLowerCase()
-        )} ainda não está implementada nesta versão.
-      </p>
-    </div>
-  `;
-}
-
 function escapar(texto) {
   if (texto === null || texto === undefined) return '';
   return String(texto)
@@ -130,6 +149,15 @@ function escapar(texto) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+function aplicarChrome(nomeRota) {
+  const config = ROTAS[nomeRota];
+  if (config?.semChrome) {
+    document.body.dataset.semChrome = 'true';
+  } else {
+    delete document.body.dataset.semChrome;
+  }
 }
 
 async function navegar() {
@@ -147,9 +175,18 @@ async function navegar() {
     return;
   }
 
+  if (ROTAS[nome].apenasAdmin) {
+    const u = obterUtilizadorGuardado();
+    if (u?.perfil !== 'Administrador') {
+      window.location.hash = `#${ROTA_INICIAL}`;
+      return;
+    }
+  }
+
   const conteudo = document.getElementById('conteudo');
   if (!conteudo) return;
 
+  aplicarChrome(nome);
   atualizarBreadcrumb(nome);
   atualizarNavAtiva(nome);
   atualizarTitulo(nome);
@@ -318,6 +355,18 @@ function configurarAreaUtilizador() {
   }
 }
 
+function configurarItensApenasAdmin() {
+  const utilizador = obterUtilizadorGuardado();
+  const ehAdmin = utilizador?.perfil === 'Administrador';
+  document.querySelectorAll('.apenas-admin').forEach((el) => {
+    if (ehAdmin) {
+      el.removeAttribute('hidden');
+    } else {
+      el.setAttribute('hidden', '');
+    }
+  });
+}
+
 function carregarPreferenciasUI() {
   try {
     const modo = localStorage.getItem(CHAVE_MODO_UI);
@@ -354,6 +403,7 @@ async function arrancar() {
   carregarPreferenciasUI();
   configurarIndicadorLigacao();
   configurarAreaUtilizador();
+  configurarItensApenasAdmin();
 
   try {
     await initStore();
@@ -364,6 +414,7 @@ async function arrancar() {
   window.addEventListener('hashchange', navegar);
   window.addEventListener('greenherb:auth-mudou', () => {
     configurarAreaUtilizador();
+    configurarItensApenasAdmin();
     navegar();
   });
 

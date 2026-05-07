@@ -15,6 +15,8 @@ tags:
     description: Registo e início de sessão.
   - name: Planos
     description: CRUD de planos de cultivo.
+  - name: Utilizadores
+    description: Gestão administrativa de utilizadores (apenas Administrador).
   - name: Sistema
     description: Verificação de saúde da API.
 paths:
@@ -78,6 +80,104 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/utilizadores:
+    get:
+      tags: [Utilizadores]
+      summary: Listar utilizadores (apenas Administrador)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de utilizadores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Utilizador'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Utilizadores]
+      summary: Criar utilizador (apenas Administrador)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Utilizador criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Utilizador'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/utilizadores/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          example: 65a1b2c3d4e5f60718293a4b
+    put:
+      tags: [Utilizadores]
+      summary: Atualizar utilizador (apenas Administrador, exceto a própria conta)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nome:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                perfil:
+                  type: string
+                  enum: [Técnico, Responsável, Administrador]
+                ativo:
+                  type: boolean
+      responses:
+        '200':
+          description: Utilizador atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Utilizador'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Tentativa de alterar a própria conta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
   /api/planos:

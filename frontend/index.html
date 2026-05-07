@@ -17,12 +17,16 @@
       href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css"
+    />
     <link rel="stylesheet" href="css/main.css" />
   </head>
   <body>
     <header class="topbar" role="banner">
       <div class="topbar-left">
-        <a class="logo" href="#planos" aria-label="GreenHerb — início">
+        <a class="logo" href="#dashboard" aria-label="GreenHerb — início">
           <svg
             class="logo-icon"
             viewBox="0 0 24 24"
@@ -86,6 +90,17 @@
       <aside class="sidebar" aria-label="Navegação principal">
         <nav>
           <div class="grupo-nav">
+            <ul>
+              <li>
+                <a href="#dashboard" data-rota="dashboard">
+                  <i class="ti ti-layout-dashboard" aria-hidden="true"></i>
+                  Dashboard
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <div class="grupo-nav">
             <p class="grupo-titulo">Gestão</p>
             <ul>
               <li>
@@ -111,6 +126,9 @@
               </li>
               <li>
                 <a href="#auditoria" data-rota="auditoria">Auditoria</a>
+              </li>
+              <li class="apenas-admin" hidden>
+                <a href="#utilizadores" data-rota="utilizadores">Utilizadores</a>
               </li>
             </ul>
           </div>
