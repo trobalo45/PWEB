@@ -17,6 +17,18 @@ tags:
     description: CRUD de planos de cultivo.
   - name: Utilizadores
     description: Gestão administrativa de utilizadores (apenas Administrador).
+  - name: Ervas
+    description: Catálogo de ervas aromáticas (incluindo importação CSV/Excel).
+  - name: Lotes
+    description: Lotes de cultivo, perdas e mudanças de estado.
+  - name: Tarefas
+    description: Tarefas operacionais associadas aos lotes.
+  - name: Medições
+    description: Registo de medições ambientais e geração automática de alertas.
+  - name: Alertas
+    description: Eventos do sistema com fluxo de resolver/ignorar.
+  - name: Auditoria
+    description: Logs de operações sensíveis (Responsável e Administrador).
   - name: Sistema
     description: Verificação de saúde da API.
 paths:
@@ -180,6 +192,556 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/ervas:
+    get:
+      tags: [Ervas]
+      summary: Listar ervas (público)
+      responses:
+        '200':
+          description: Lista de ervas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ErvaAromatica'
+    post:
+      tags: [Ervas]
+      summary: Criar erva (Administrador)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ErvaAromatica'
+      responses:
+        '201':
+          description: Erva criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErvaAromatica'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/ervas/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [Ervas]
+      summary: Editar erva (Administrador)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ErvaAromatica'
+      responses:
+        '200':
+          description: Erva atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErvaAromatica'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Ervas]
+      summary: Eliminar erva (Administrador)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Erva eliminada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/ervas/importar:
+    post:
+      tags: [Ervas]
+      summary: Importar ervas via CSV ou Excel (Administrador)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [ficheiro]
+              properties:
+                ficheiro:
+                  type: string
+                  format: binary
+                  description: Ficheiro .csv ou .xlsx
+      responses:
+        '200':
+          description: Resumo da importação
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inseridas: { type: integer }
+                  ignoradas: { type: integer }
+                  erros:
+                    type: array
+                    items:
+                      type: object
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/ervas/exportar:
+    get:
+      tags: [Ervas]
+      summary: Exportar todas as ervas em CSV
+      responses:
+        '200':
+          description: CSV das ervas
+          content:
+            text/csv:
+              schema:
+                type: string
+  /api/lotes:
+    get:
+      tags: [Lotes]
+      summary: Listar lotes
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de lotes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LoteCultivo'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Lotes]
+      summary: Criar lote
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoteCultivo'
+      responses:
+        '201':
+          description: Lote criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoteCultivo'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/lotes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Lotes]
+      summary: Detalhe do lote
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lote
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoteCultivo'
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [Lotes]
+      summary: Editar lote (criador ou Administrador)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoteCultivo'
+      responses:
+        '200':
+          description: Lote atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoteCultivo'
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Lotes]
+      summary: Eliminar lote (Administrador)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Eliminado }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/lotes/{id}/perda:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Lotes]
+      summary: Registar perda no lote
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantidade, motivo]
+              properties:
+                quantidade: { type: integer, minimum: 1 }
+                motivo: { type: string }
+      responses:
+        '200':
+          description: Lote atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoteCultivo'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/lotes/{id}/estado:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [Lotes]
+      summary: Mudar estado do lote
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [estado]
+              properties:
+                estado:
+                  type: string
+                  enum: [ativo, concluído, comprometido]
+      responses:
+        '200':
+          description: Lote atualizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoteCultivo'
+  /api/tarefas:
+    get:
+      tags: [Tarefas]
+      summary: Listar tarefas
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: loteId
+          in: query
+          schema: { type: string }
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [pendente, executada]
+      responses:
+        '200':
+          description: Lista de tarefas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tarefa'
+    post:
+      tags: [Tarefas]
+      summary: Criar tarefa
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Tarefa'
+      responses:
+        '201':
+          description: Tarefa criada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tarefa'
+  /api/tarefas/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Tarefas]
+      summary: Detalhe da tarefa
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Tarefa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tarefa'
+    put:
+      tags: [Tarefas]
+      summary: Editar tarefa
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Tarefa'
+      responses:
+        '200':
+          description: Tarefa atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tarefa'
+    delete:
+      tags: [Tarefas]
+      summary: Eliminar tarefa (Administrador)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Eliminada }
+  /api/tarefas/{id}/executar:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [Tarefas]
+      summary: Marcar tarefa como executada
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Tarefa atualizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tarefa'
+  /api/medicoes:
+    get:
+      tags: [Medições]
+      summary: Listar medições
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: loteId
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Lista de medições
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MedicaoAmbiental'
+    post:
+      tags: [Medições]
+      summary: Registar medição (gera alertas automáticos)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MedicaoAmbiental'
+      responses:
+        '201':
+          description: Medição registada com lista de alertas gerados
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  medicao:
+                    $ref: '#/components/schemas/MedicaoAmbiental'
+                  alertas:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Alerta'
+  /api/medicoes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Medições]
+      summary: Detalhe da medição
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Medição
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicaoAmbiental'
+    delete:
+      tags: [Medições]
+      summary: Eliminar medição (Administrador)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Eliminada }
+  /api/alertas:
+    get:
+      tags: [Alertas]
+      summary: Listar alertas
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: estado
+          in: query
+          schema:
+            type: string
+            enum: [ativo, resolvido, ignorado]
+        - name: loteId
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Lista de alertas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alerta'
+  /api/alertas/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Alertas]
+      summary: Detalhe do alerta
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Alerta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alerta'
+  /api/alertas/{id}/resolver:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [Alertas]
+      summary: Resolver alerta
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Alerta resolvido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alerta'
+  /api/alertas/{id}/ignorar:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    put:
+      tags: [Alertas]
+      summary: Ignorar alerta com justificação
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [justificacao]
+              properties:
+                justificacao:
+                  type: string
+                  minLength: 10
+      responses:
+        '200':
+          description: Alerta ignorado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alerta'
+        '400': { $ref: '#/components/responses/BadRequest' }
+  /api/auditoria:
+    get:
+      tags: [Auditoria]
+      summary: Listar logs (Responsável e Administrador)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: utilizadorId
+          in: query
+          schema: { type: string }
+        - name: acao
+          in: query
+          schema: { type: string }
+        - name: limite
+          in: query
+          schema: { type: integer, default: 50, maximum: 500 }
+      responses:
+        '200':
+          description: Lista de logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LogAuditoria'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /api/planos:
     get:
       tags: [Planos]
@@ -476,3 +1038,118 @@ components:
             dataCriacao:
               type: string
               format: date-time
+    ErvaAromatica:
+      type: object
+      required: [nome]
+      properties:
+        _id: { type: string }
+        nome: { type: string, example: Manjericão }
+        descricao: { type: string }
+        tempMin: { type: number }
+        tempMax: { type: number }
+        humidadeMin: { type: number, minimum: 0, maximum: 100 }
+        humidadeMax: { type: number, minimum: 0, maximum: 100 }
+        luminosidadeMin: { type: number, minimum: 0 }
+        luminosidadeMax: { type: number, minimum: 0 }
+        dataCriacao: { type: string, format: date-time }
+    LotePerda:
+      type: object
+      properties:
+        quantidade: { type: integer, minimum: 1 }
+        motivo: { type: string }
+        data: { type: string, format: date-time }
+    LoteCultivo:
+      type: object
+      required: [erva, dataInicio, quantidadeInicial]
+      properties:
+        _id: { type: string }
+        erva: { type: string }
+        planoId: { type: string }
+        estado:
+          type: string
+          enum: [ativo, concluído, comprometido]
+        dataInicio: { type: string, format: date-time }
+        dataFim: { type: string, format: date-time }
+        quantidadeInicial: { type: integer, minimum: 1 }
+        quantidadeAtual: { type: integer, minimum: 0 }
+        perdas:
+          type: array
+          items:
+            $ref: '#/components/schemas/LotePerda'
+        notas: { type: string }
+        criadoPor:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/Utilizador'
+        dataCriacao: { type: string, format: date-time }
+    Tarefa:
+      type: object
+      required: [tipo, loteId, dataPrevista]
+      properties:
+        _id: { type: string }
+        tipo:
+          type: string
+          enum: [rega, fertilização, colheita, monitorização]
+        loteId: { type: string }
+        estado:
+          type: string
+          enum: [pendente, executada]
+        dataPrevista: { type: string, format: date-time }
+        dataExecucao: { type: string, format: date-time }
+        notas: { type: string }
+        criadoPor:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/Utilizador'
+        executadoPor:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/Utilizador'
+        dataCriacao: { type: string, format: date-time }
+    MedicaoAmbiental:
+      type: object
+      required: [loteId, temperatura, humidade, luminosidade]
+      properties:
+        _id: { type: string }
+        loteId: { type: string }
+        temperatura: { type: number }
+        humidade: { type: number, minimum: 0, maximum: 100 }
+        luminosidade: { type: number, minimum: 0 }
+        dataHora: { type: string, format: date-time }
+        registadoPor:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/Utilizador'
+    Alerta:
+      type: object
+      required: [mensagem]
+      properties:
+        _id: { type: string }
+        loteId: { type: string }
+        medicaoId: { type: string }
+        classificacao:
+          type: string
+          enum: [Informativo, Aviso, Crítico]
+        mensagem: { type: string }
+        estado:
+          type: string
+          enum: [ativo, resolvido, ignorado]
+        justificacaoIgnorar: { type: string }
+        resolvidoPor:
+          oneOf:
+            - type: string
+            - $ref: '#/components/schemas/Utilizador'
+        dataRegisto: { type: string, format: date-time }
+        dataResolucao: { type: string, format: date-time }
+    LogAuditoria:
+      type: object
+      properties:
+        _id: { type: string }
+        utilizadorId: { type: string }
+        utilizadorNome: { type: string }
+        acao: { type: string, example: criar_plano }
+        entidade: { type: string, example: PlanoCultivo }
+        entidadeId: { type: string }
+        detalhes: { type: string }
+        dataHora: { type: string, format: date-time }
+        ip: { type: string }

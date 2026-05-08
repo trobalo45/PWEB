@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const Utilizador = require('../models/Utilizador');
 const { verifyToken, checkRole } = require('../middleware/auth');
+const { registarLog } = require('../middleware/auditoria');
 
 const router = express.Router();
 
@@ -88,6 +89,7 @@ router.put('/:id', async (req, res) => {
     });
 
     await utilizador.save();
+    registarLog(req, 'editar_utilizador', 'Utilizador', utilizador._id, corpo);
     res.json(utilizador);
   } catch (erro) {
     if (erro.name === 'ValidationError') {

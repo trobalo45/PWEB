@@ -1,6 +1,7 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const Utilizador = require('../models/Utilizador');
+const { registarLog } = require('../middleware/auditoria');
 
 const router = express.Router();
 
@@ -106,6 +107,11 @@ router.post('/login', async (req, res) => {
     console.log('[login] Login autorizado para:', utilizador.email);
 
     const token = assinarToken(utilizador);
+    req.user = utilizador;
+    registarLog(req, 'login', 'Utilizador', utilizador._id, {
+      email: utilizador.email,
+      perfil: utilizador.perfil,
+    });
     return res.json({
       token,
       utilizador,

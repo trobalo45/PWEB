@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const PlanoCultivo = require('../models/PlanoCultivo');
 const { verifyToken, checkRole } = require('../middleware/auth');
+const { registarLog } = require('../middleware/auditoria');
 
 const router = express.Router();
 
@@ -66,6 +67,10 @@ router.post('/', async (req, res) => {
       'criadoPor',
       'nome email perfil'
     );
+    registarLog(req, 'criar_plano', 'PlanoCultivo', novoPlano._id, {
+      tipo: novoPlano.tipo,
+      erva: novoPlano.erva,
+    });
     res.status(201).json(populado);
   } catch (erro) {
     tratarErroValidacao(res, erro);
@@ -123,6 +128,10 @@ router.delete('/:id', checkRole('Administrador'), async (req, res) => {
     if (!apagado) {
       return res.status(404).json({ erro: 'Plano não encontrado.' });
     }
+    registarLog(req, 'eliminar_plano', 'PlanoCultivo', apagado._id, {
+      tipo: apagado.tipo,
+      erva: apagado.erva,
+    });
     res.status(204).end();
   } catch (erro) {
     tratarErroValidacao(res, erro);

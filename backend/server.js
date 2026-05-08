@@ -7,6 +7,12 @@ const cors = require('cors');
 const rotasAuth = require('./routes/auth');
 const rotasPlanos = require('./routes/planos');
 const rotasUtilizadores = require('./routes/utilizadores');
+const rotasErvas = require('./routes/ervas');
+const rotasLotes = require('./routes/lotes');
+const rotasTarefas = require('./routes/tarefas');
+const rotasMedicoes = require('./routes/medicoes');
+const rotasAlertas = require('./routes/alertas');
+const rotasAuditoria = require('./routes/auditoria');
 
 const PORT = Number(process.env.PORT) || 5000;
 const MONGODB_URI =
@@ -41,6 +47,12 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', rotasAuth);
 app.use('/api/planos', rotasPlanos);
 app.use('/api/utilizadores', rotasUtilizadores);
+app.use('/api/ervas', rotasErvas);
+app.use('/api/lotes', rotasLotes);
+app.use('/api/tarefas', rotasTarefas);
+app.use('/api/medicoes', rotasMedicoes);
+app.use('/api/alertas', rotasAlertas);
+app.use('/api/auditoria', rotasAuditoria);
 
 app.use((_req, res) => {
   res.status(404).json({ erro: 'Rota não encontrada.' });
