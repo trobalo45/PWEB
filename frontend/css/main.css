@@ -1073,6 +1073,18 @@ body[data-sem-chrome="true"] .conteudo {
   background-color: var(--color-card-bg);
 }
 
+/* ============ ZONA EXPANSÍVEL ============ */
+
+.zona-expansivel {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+
+.zona-expansivel.aberto {
+  max-height: 1200px;
+}
+
 /* ============ DASHBOARD ============ */
 
 .metricas-grelha {

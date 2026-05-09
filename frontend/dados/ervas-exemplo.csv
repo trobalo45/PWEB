@@ -1,0 +1,9 @@
+nome,descricao,tempMin,tempMax,humidadeMin,humidadeMax,luminosidadeMin,luminosidadeMax
+Manjericão,Erva aromática mediterrânica de folha larga usada em culinária,18,28,60,80,8000,14000
+Hortelã,Planta de crescimento rápido com aroma fresco e mentolado,10,22,70,90,4000,10000
+Alecrim,Arbusto aromático resistente à seca com folhas em agulha,15,30,30,60,10000,20000
+Tomilho,Erva mediterrânica rasteira com folhas pequenas e aroma intenso,12,28,35,65,8000,16000
+Salva,Planta aromática com folhas aveludadas usada em medicina e culinária,15,28,40,65,8000,14000
+Orégão,Erva aromática de sabor intenso muito usada na cozinha italiana,18,30,40,70,8000,16000
+Coentros,Planta anual de aroma forte usada em culinária mediterrânica e asiática,15,25,55,75,6000,12000
+Estragão,Erva aromática com sabor anisado usada em cozinha francesa,16,24,50,70,6000,12000

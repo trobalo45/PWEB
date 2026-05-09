@@ -196,7 +196,10 @@ router.post(
         .json({ erro: 'Não foi possível ler o ficheiro: ' + erro.message });
     }
 
+    const modo = req.query.modo === 'atualizar' ? 'atualizar' : 'ignorar';
+
     let inseridas = 0;
+    let atualizadas = 0;
     let ignoradas = 0;
     const erros = [];
 
@@ -216,25 +219,44 @@ router.post(
         continue;
       }
       try {
-        const existente = await ErvaAromatica.findOne({ nome: dados.nome });
-        if (existente) {
-          ignoradas++;
-          continue;
+        if (modo === 'atualizar') {
+          const resultado = await ErvaAromatica.updateOne(
+            { nome: dados.nome },
+            { $set: dados },
+            {
+              upsert: true,
+              runValidators: true,
+              setDefaultsOnInsert: true,
+            }
+          );
+          if (resultado.upsertedCount && resultado.upsertedCount > 0) {
+            inseridas++;
+          } else {
+            atualizadas++;
+          }
+        } else {
+          const existente = await ErvaAromatica.findOne({ nome: dados.nome });
+          if (existente) {
+            ignoradas++;
+            continue;
+          }
+          await ErvaAromatica.create(dados);
+          inseridas++;
         }
-        await ErvaAromatica.create(dados);
-        inseridas++;
       } catch (erro) {
         erros.push({ linha: r, motivo: erro.message });
       }
     }
 
     registarLog(req, 'importar_ervas', 'ErvaAromatica', null, {
+      modo,
       inseridas,
+      atualizadas,
       ignoradas,
       total: registos.length,
     });
 
-    res.json({ inseridas, ignoradas, erros });
+    res.json({ inseridas, atualizadas, ignoradas, erros });
   }
 );
 

@@ -38,6 +38,50 @@ function nomeFicheiroExcel() {
   return `greenherb-planos-${aaaa}-${mm}-${dd}.xlsx`;
 }
 
+function ehAdministrador() {
+  try {
+    const json = localStorage.getItem('greenherb.utilizador');
+    if (!json) return false;
+    return JSON.parse(json).perfil === 'Administrador';
+  } catch {
+    return false;
+  }
+}
+
+function obterToken() {
+  try {
+    return localStorage.getItem('greenherb.token');
+  } catch {
+    return null;
+  }
+}
+
+async function importarErvas(ficheiro, modo) {
+  const formData = new FormData();
+  formData.append('ficheiro', ficheiro);
+  const url = `http://${window.location.hostname}:5000/api/ervas/importar?modo=${encodeURIComponent(modo)}`;
+  const headers = {};
+  const token = obterToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const resposta = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+  const tipo = resposta.headers.get('content-type') || '';
+  let corpo = null;
+  if (tipo.includes('application/json')) {
+    corpo = await resposta.json();
+  }
+  if (!resposta.ok) {
+    const msg = (corpo && corpo.erro) || `Erro ${resposta.status}.`;
+    const erro = new Error(msg);
+    erro.estado = resposta.status;
+    throw erro;
+  }
+  return corpo || {};
+}
+
 function escaparHTML(texto) {
   if (texto === null || texto === undefined) return '';
   return String(texto)
@@ -361,6 +405,100 @@ export async function montar(elemento) {
       <p id="estado-exportacao" style="margin-top: 12px; font-size: 12px; color: var(--color-text-secondary);"></p>
     </div>
 
+    ${
+      ehAdministrador()
+        ? `
+    <div style="margin-top: 16px;">
+      <button
+        type="button"
+        class="btn btn-secundario"
+        data-acao="toggle-import"
+        id="botao-toggle-import"
+        aria-expanded="false"
+        aria-controls="zona-import-ervas"
+        style="color: #1a3a2a;"
+      >
+        Importar ervas aromáticas
+      </button>
+
+      <div
+        id="zona-import-ervas"
+        class="zona-expansivel"
+        aria-hidden="true"
+      >
+        <div class="cartao-formulario" style="margin-top: 12px;">
+          <h2>Importar ervas aromáticas</h2>
+          <p class="descricao-passo">
+            Importa ervas a partir de um ficheiro CSV ou Excel.
+          </p>
+
+          <p style="font-size: 13px; margin: 0 0 16px;">
+            <a href="/dados/ervas-exemplo.csv" download>
+              Descarregar ficheiro de exemplo (CSV)
+            </a>
+          </p>
+
+          <div class="campo">
+            <label for="ficheiro-import">Ficheiro</label>
+            <input id="ficheiro-import" type="file" accept=".csv,.xlsx" />
+            <p
+              id="nome-ficheiro"
+              style="font-size: 12px; color: var(--color-text-secondary); margin: 4px 0 0; min-height: 16px;"
+            ></p>
+          </div>
+
+          <fieldset
+            style="border: none; padding: 0; margin: 16px 0;"
+          >
+            <legend
+              class="rotulo-grupo"
+              style="padding: 0; margin-bottom: 8px;"
+            >
+              Modo de importação
+            </legend>
+            <label
+              style="display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px;"
+            >
+              <input
+                type="radio"
+                name="modo-import"
+                value="ignorar"
+                checked
+              />
+              Manter dados atuais — insere apenas ervas novas, ignora duplicados
+            </label>
+            <label
+              style="display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px;"
+            >
+              <input
+                type="radio"
+                name="modo-import"
+                value="atualizar"
+              />
+              Atualizar duplicados — atualiza ervas existentes com os dados do ficheiro
+            </label>
+          </fieldset>
+
+          <div
+            class="barra-acoes-direita"
+            style="justify-content: flex-start; gap: 12px; align-items: center;"
+          >
+            <button
+              type="button"
+              class="btn btn-primario"
+              data-acao="importar"
+              disabled
+            >
+              Importar
+            </button>
+            <span id="resultado-import"></span>
+          </div>
+        </div>
+      </div>
+    </div>`
+        : ''
+    }
+
     <div class="cartao-formulario" style="margin-top: 16px;">
       <h2>Comparação real vs. plano</h2>
       <p class="descricao-passo">Médias das medições registadas por lote vs. intervalos definidos no plano regular associado.</p>
@@ -436,4 +574,89 @@ export async function montar(elemento) {
         estado.textContent = 'Erro: ' + erro.message;
       }
     });
+
+  const botaoToggleImport = elemento.querySelector(
+    '[data-acao="toggle-import"]'
+  );
+  const zonaImport = elemento.querySelector('#zona-import-ervas');
+  const inputFicheiro = elemento.querySelector('#ficheiro-import');
+  const nomeFicheiroP = elemento.querySelector('#nome-ficheiro');
+  const botaoImportar = elemento.querySelector('[data-acao="importar"]');
+  const resultadoSpan = elemento.querySelector('#resultado-import');
+
+  function fecharImport() {
+    if (!zonaImport || !botaoToggleImport) return;
+    zonaImport.classList.remove('aberto');
+    zonaImport.setAttribute('aria-hidden', 'true');
+    botaoToggleImport.setAttribute('aria-expanded', 'false');
+    botaoToggleImport.textContent = 'Importar ervas aromáticas';
+    if (resultadoSpan) resultadoSpan.innerHTML = '';
+  }
+
+  if (botaoToggleImport && zonaImport) {
+    botaoToggleImport.addEventListener('click', () => {
+      const aberto = zonaImport.classList.toggle('aberto');
+      zonaImport.setAttribute('aria-hidden', aberto ? 'false' : 'true');
+      botaoToggleImport.setAttribute(
+        'aria-expanded',
+        aberto ? 'true' : 'false'
+      );
+      botaoToggleImport.textContent = aberto
+        ? 'Fechar'
+        : 'Importar ervas aromáticas';
+      if (!aberto && resultadoSpan) resultadoSpan.innerHTML = '';
+    });
+  }
+
+  if (inputFicheiro && botaoImportar) {
+    inputFicheiro.addEventListener('change', () => {
+      const f = inputFicheiro.files?.[0];
+      if (f) {
+        nomeFicheiroP.textContent = `Selecionado: ${f.name}`;
+        botaoImportar.disabled = false;
+      } else {
+        nomeFicheiroP.textContent = '';
+        botaoImportar.disabled = true;
+      }
+      if (resultadoSpan) resultadoSpan.innerHTML = '';
+    });
+
+    botaoImportar.addEventListener('click', async () => {
+      const f = inputFicheiro.files?.[0];
+      if (!f) return;
+      const modoEl = elemento.querySelector(
+        'input[name="modo-import"]:checked'
+      );
+      const modo = modoEl ? modoEl.value : 'ignorar';
+
+      botaoImportar.disabled = true;
+      const textoOriginal = botaoImportar.textContent;
+      botaoImportar.textContent = 'A importar…';
+      resultadoSpan.innerHTML = '';
+
+      try {
+        const r = await importarErvas(f, modo);
+        const inseridas = r.inseridas || 0;
+        const atualizadas = r.atualizadas || 0;
+        const ignoradas = r.ignoradas || 0;
+        resultadoSpan.innerHTML = `
+          <span class="chip chip-estado-ativo">
+            ${inseridas} ervas importadas, ${atualizadas} atualizadas, ${ignoradas} ignoradas
+          </span>
+        `;
+        setTimeout(() => {
+          fecharImport();
+        }, 3000);
+      } catch (erro) {
+        resultadoSpan.innerHTML = `
+          <span class="chip chip-classificacao-critico">
+            ${escaparHTML(erro.message)}
+          </span>
+        `;
+      } finally {
+        botaoImportar.textContent = textoOriginal;
+        botaoImportar.disabled = !inputFicheiro.files?.[0];
+      }
+    });
+  }
 }
