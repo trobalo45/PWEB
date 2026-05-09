@@ -1,0 +1,10 @@
+{
+  "name": "GreenHerb",
+  "short_name": "GreenHerb",
+  "description": "Plataforma de Gestão de Estufa",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a3a2a",
+  "icons": []
+}

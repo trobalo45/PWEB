@@ -427,3 +427,10 @@ if (document.readyState === 'loading') {
 } else {
   arrancar();
 }
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker
+    .register('/sw.js')
+    .then((reg) => console.log('[SW] registado:', reg.scope))
+    .catch((err) => console.warn('[SW] falha ao registar:', err));
+}

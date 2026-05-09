@@ -11,6 +11,33 @@ const ROTULO_ERVA = {
   hortelã: 'Hortelã',
 };
 
+const ROTULO_TIPO = {
+  regular: 'Regular',
+  emergencia: 'Emergência',
+  pontual: 'Pontual',
+};
+
+function formatarDataPT(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return `${dd}/${mm}/${d.getFullYear()}`;
+  } catch {
+    return '';
+  }
+}
+
+function nomeFicheiroExcel() {
+  const d = new Date();
+  const aaaa = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `greenherb-planos-${aaaa}-${mm}-${dd}.xlsx`;
+}
+
 function escaparHTML(texto) {
   if (texto === null || texto === undefined) return '';
   return String(texto)
@@ -94,32 +121,172 @@ function descarregarFicheiro(nome, conteudo, tipo) {
 
 let sheetJSPromise = null;
 function carregarSheetJS() {
-  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (window.XLSX && window.XLSX.utils && window.XLSX.utils.encode_cell) {
+    return Promise.resolve(window.XLSX);
+  }
   if (sheetJSPromise) return sheetJSPromise;
   sheetJSPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    script.src =
+      'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
     script.onload = () => resolve(window.XLSX);
-    script.onerror = () => reject(new Error('Não foi possível carregar SheetJS.'));
+    script.onerror = () =>
+      reject(new Error('Não foi possível carregar XLSX-JS-Style.'));
     document.head.appendChild(script);
   });
   return sheetJSPromise;
 }
 
-async function exportarExcel(planos) {
-  const XLSX = await carregarSheetJS();
-  const dados = planos.map((p) => ({
+const COLUNAS_EXCEL = [
+  { titulo: 'ID', chave: 'id' },
+  { titulo: 'Tipo', chave: 'tipo' },
+  { titulo: 'Erva', chave: 'erva' },
+  { titulo: 'Estado', chave: 'estado' },
+  { titulo: 'Data de Criação', chave: 'dataCriacao' },
+  { titulo: 'Temp.Mín(°C)', chave: 'tempMin' },
+  { titulo: 'Temp.Máx(°C)', chave: 'tempMax' },
+  { titulo: 'Humidade Mín(%)', chave: 'humMin' },
+  { titulo: 'Humidade Máx(%)', chave: 'humMax' },
+  { titulo: 'Luminosidade Mín(lux)', chave: 'luxMin' },
+  { titulo: 'Luminosidade Máx(lux)', chave: 'luxMax' },
+  { titulo: 'Duração(dias)', chave: 'cicloDias' },
+  { titulo: 'Freq.Rega(h)', chave: 'freqRega' },
+  { titulo: 'Volume Rega(L)', chave: 'volumeRega' },
+  { titulo: 'Freq.Fertilização(dias)', chave: 'freqFert' },
+  { titulo: 'Tipo Intervenção', chave: 'tipoIntervencao' },
+  { titulo: 'Intervalo Mínimo(h)', chave: 'intervaloMinimo' },
+  { titulo: 'Dosagem', chave: 'dosagem' },
+  { titulo: 'Responsável', chave: 'responsavel' },
+  { titulo: 'Justificação', chave: 'justificacao' },
+  { titulo: 'Data Autorização', chave: 'dataAutorizacao' },
+];
+
+function planoParaLinha(p) {
+  const linha = {
     id: p.id,
-    tipo: p.tipo,
+    tipo: ROTULO_TIPO[p.tipo] || p.tipo,
     erva: ROTULO_ERVA[p.erva] || p.erva,
     estado: p.estado,
-    dataCriacao: p.dataCriacao,
-    detalhes: descreverDadosPlano(p),
-  }));
-  const ws = XLSX.utils.json_to_sheet(dados);
+    dataCriacao: formatarDataPT(p.dataCriacao),
+  };
+
+  const d = p.dadosEspecificos || {};
+  if (p.tipo === 'regular') {
+    const c = d.condicoes || {};
+    const r = d.rega || {};
+    linha.tempMin = c.temperatura?.min;
+    linha.tempMax = c.temperatura?.max;
+    linha.humMin = c.humidade?.min;
+    linha.humMax = c.humidade?.max;
+    linha.luxMin = c.luminosidade?.min;
+    linha.luxMax = c.luminosidade?.max;
+    linha.cicloDias = c.cicloDias;
+    linha.freqRega = r.frequenciaHoras;
+    linha.volumeRega = r.volumeLitros;
+    linha.freqFert = r.frequenciaFertilizacaoDias;
+  } else if (p.tipo === 'emergencia') {
+    linha.tipoIntervencao = d.tipoIntervencao;
+    linha.intervaloMinimo = d.intervaloMinHoras;
+    linha.dosagem = d.dosagem;
+  } else if (p.tipo === 'pontual') {
+    linha.responsavel = d.responsavel;
+    linha.justificacao = d.justificacao;
+    linha.dataAutorizacao = formatarDataPT(d.dataHoraAutorizacao);
+  }
+
+  return linha;
+}
+
+const ESTILO_CABECALHO = {
+  fill: { patternType: 'solid', fgColor: { rgb: '1A3A2A' } },
+  font: { color: { rgb: 'FFFFFF' }, bold: true, sz: 11 },
+  alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+  border: {
+    top: { style: 'thin', color: { rgb: '1A3A2A' } },
+    bottom: { style: 'thin', color: { rgb: '1A3A2A' } },
+    left: { style: 'thin', color: { rgb: '1A3A2A' } },
+    right: { style: 'thin', color: { rgb: '1A3A2A' } },
+  },
+};
+
+const ESTILO_LINHA_BRANCA = {
+  fill: { patternType: 'solid', fgColor: { rgb: 'FFFFFF' } },
+  alignment: { vertical: 'center', wrapText: true },
+  border: {
+    top: { style: 'hair', color: { rgb: 'D8E4DC' } },
+    bottom: { style: 'hair', color: { rgb: 'D8E4DC' } },
+    left: { style: 'hair', color: { rgb: 'D8E4DC' } },
+    right: { style: 'hair', color: { rgb: 'D8E4DC' } },
+  },
+};
+
+const ESTILO_LINHA_VERDE = {
+  ...ESTILO_LINHA_BRANCA,
+  fill: { patternType: 'solid', fgColor: { rgb: 'F4F9F6' } },
+};
+
+async function exportarExcel(planos) {
+  const XLSX = await carregarSheetJS();
+
+  const linhas = planos.map(planoParaLinha);
+  const matriz = [
+    COLUNAS_EXCEL.map((c) => c.titulo),
+    ...linhas.map((linha) =>
+      COLUNAS_EXCEL.map((c) => {
+        const v = linha[c.chave];
+        return v === undefined || v === null ? '' : v;
+      })
+    ),
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(matriz);
+  const numColunas = COLUNAS_EXCEL.length;
+  const numLinhas = matriz.length;
+
+  for (let c = 0; c < numColunas; c++) {
+    const ref = XLSX.utils.encode_cell({ r: 0, c });
+    if (!ws[ref]) ws[ref] = { v: COLUNAS_EXCEL[c].titulo, t: 's' };
+    ws[ref].s = ESTILO_CABECALHO;
+  }
+
+  for (let r = 1; r < numLinhas; r++) {
+    const estilo = r % 2 === 1 ? ESTILO_LINHA_BRANCA : ESTILO_LINHA_VERDE;
+    for (let c = 0; c < numColunas; c++) {
+      const ref = XLSX.utils.encode_cell({ r, c });
+      if (!ws[ref]) ws[ref] = { v: '', t: 's' };
+      ws[ref].s = estilo;
+    }
+  }
+
+  ws['!cols'] = COLUNAS_EXCEL.map((col) => {
+    let max = col.titulo.length;
+    linhas.forEach((linha) => {
+      const v = linha[col.chave];
+      if (v != null && v !== '') {
+        const len = String(v).length;
+        if (len > max) max = len;
+      }
+    });
+    return { wch: Math.min(Math.max(max + 2, 8), 40) };
+  });
+
+  ws['!rows'] = [{ hpt: 20 }];
+
+  ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+  ws['!sheetView'] = {
+    state: 'frozen',
+    topLeftCell: 'A2',
+    xSplit: 0,
+    ySplit: 1,
+  };
+
+  const ultimaCol = XLSX.utils.encode_col(numColunas - 1);
+  ws['!autofilter'] = { ref: `A1:${ultimaCol}1` };
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Planos');
-  XLSX.writeFile(wb, 'greenherb-planos.xlsx');
+  XLSX.utils.book_append_sheet(wb, ws, 'Planos de Cultivo');
+
+  XLSX.writeFile(wb, nomeFicheiroExcel());
 }
 
 function media(numeros) {
