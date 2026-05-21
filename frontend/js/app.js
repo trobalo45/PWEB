@@ -13,6 +13,7 @@ import * as vistaRelatorios from './views/relatorios.js';
 import * as vistaAuditoria from './views/auditoria.js';
 import * as vistaUtilizadores from './views/utilizadores.js';
 import * as vistaDashboard from './views/dashboard.js';
+import * as vistaContaDefinicoes from './views/contaDefinicoes.js';
 
 const CHAVE_ULTIMA_VISTA = 'greenherb.ultimaVista';
 const CHAVE_MODO_UI = 'greenherb.modoUI';
@@ -89,6 +90,11 @@ const ROTAS = {
     grupo: 'Sistema',
     montar: vistaUtilizadores.montar,
     apenasAdmin: true,
+  },
+  contaDefinicoes: {
+    rotulo: 'Definições da conta',
+    grupo: 'Geral',
+    montar: vistaContaDefinicoes.montar,
   },
   login: {
     rotulo: 'Iniciar sessão',
@@ -322,22 +328,51 @@ function configurarAreaUtilizador() {
       ? `${utilizador.nome} (${utilizador.perfil})`
       : 'Sessão iniciada';
 
+    wrapper.className = 'dropdown-conta';
     wrapper.innerHTML = `
-      <span
-        class="avatar"
-        title="${escapar(nomeTitulo)}"
-        aria-label="${escapar(nomeTitulo)}"
-      >${escapar(iniciais)}</span>
       <button
         type="button"
-        class="btn btn-ghost"
-        data-acao="terminar-sessao"
-        style="color: rgba(255,255,255,0.85); border-color: rgba(255,255,255,0.25);"
-      >
-        Sair
-      </button>
+        class="avatar avatar-button"
+        data-acao="abrir-dropdown"
+        aria-haspopup="true"
+        aria-expanded="false"
+        title="${escapar(nomeTitulo)}"
+        aria-label="${escapar(nomeTitulo)}"
+      >${escapar(iniciais)}</button>
+      <div class="dropdown-conta-menu" id="dropdown-conta-menu" role="menu">
+        <p class="dropdown-cabecalho">
+          <span class="dropdown-nome">${escapar(utilizador?.nome || '')}</span>
+          <span class="dropdown-email">${escapar(utilizador?.email || '')}</span>
+        </p>
+        <a href="#contaDefinicoes" role="menuitem" data-acao="navegar-definicoes">
+          <i class="ti ti-settings" aria-hidden="true"></i>
+          Definições da conta
+        </a>
+        <hr />
+        <button type="button" role="menuitem" data-acao="terminar-sessao">
+          <i class="ti ti-logout" aria-hidden="true"></i>
+          Sair
+        </button>
+      </div>
     `;
     container.appendChild(wrapper);
+
+    const botaoToggle = wrapper.querySelector('[data-acao="abrir-dropdown"]');
+    const menu = wrapper.querySelector('.dropdown-conta-menu');
+
+    botaoToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const aberto = menu.classList.toggle('aberto');
+      botaoToggle.setAttribute('aria-expanded', aberto ? 'true' : 'false');
+    });
+
+    menu.querySelectorAll('a, button').forEach((item) => {
+      item.addEventListener('click', () => {
+        menu.classList.remove('aberto');
+        botaoToggle.setAttribute('aria-expanded', 'false');
+      });
+    });
+
     wrapper
       .querySelector('[data-acao="terminar-sessao"]')
       .addEventListener('click', terminarSessao);
@@ -416,6 +451,15 @@ async function arrancar() {
     configurarAreaUtilizador();
     configurarItensApenasAdmin();
     navegar();
+  });
+
+  document.addEventListener('click', (e) => {
+    const menu = document.getElementById('dropdown-conta-menu');
+    if (!menu || !menu.classList.contains('aberto')) return;
+    if (e.target.closest('.dropdown-conta')) return;
+    menu.classList.remove('aberto');
+    const botao = document.querySelector('[data-acao="abrir-dropdown"]');
+    if (botao) botao.setAttribute('aria-expanded', 'false');
   });
 
   definirRotaInicial();

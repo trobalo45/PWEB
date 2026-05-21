@@ -2,6 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const Utilizador = require('../models/Utilizador');
 const { registarLog } = require('../middleware/auditoria');
+const { verifyToken } = require('./../middleware/auth');
 
 const router = express.Router();
 
@@ -75,6 +76,17 @@ router.post('/login', async (req, res) => {
 
     if (!utilizador) {
       console.log('[login] Utilizador não encontrado para email:', email);
+      registarLog(
+        req,
+        'login_falhado',
+        'Utilizador',
+        null,
+        { motivo: 'utilizador inexistente', emailTentado: email },
+        {
+          utilizadorId: null,
+          utilizadorNome: `(${String(email).trim()})`,
+        }
+      );
       return res
         .status(401)
         .json({ erro: 'Credenciais inválidas.' });
@@ -83,6 +95,17 @@ router.post('/login', async (req, res) => {
     const valido = await utilizador.compararPassword(password);
     if (!valido) {
       console.log('[login] Password inválida para:', utilizador.email);
+      registarLog(
+        req,
+        'login_falhado',
+        'Utilizador',
+        utilizador._id,
+        { motivo: 'password incorreta', emailTentado: utilizador.email },
+        {
+          utilizadorId: null,
+          utilizadorNome: `(${utilizador.email})`,
+        }
+      );
       return res
         .status(401)
         .json({ erro: 'Credenciais inválidas.' });
@@ -99,6 +122,17 @@ router.post('/login', async (req, res) => {
 
     if (!utilizador.ativo) {
       console.log('[login] Login bloqueado — conta desativada');
+      registarLog(
+        req,
+        'login_falhado',
+        'Utilizador',
+        utilizador._id,
+        { motivo: 'conta desativada', emailTentado: utilizador.email },
+        {
+          utilizadorId: null,
+          utilizadorNome: `(${utilizador.email})`,
+        }
+      );
       return res.status(401).json({
         erro: 'Conta desativada. Contacta o administrador do sistema.',
       });
@@ -118,6 +152,43 @@ router.post('/login', async (req, res) => {
     });
   } catch (erro) {
     console.error('[login] erro:', erro);
+    return res.status(500).json({ erro: 'Erro interno do servidor.' });
+  }
+});
+
+router.put('/password', verifyToken, async (req, res) => {
+  const { passwordAtual, novaPassword } = req.body || {};
+  if (!passwordAtual || !novaPassword) {
+    return res
+      .status(400)
+      .json({ erro: 'passwordAtual e novaPassword são obrigatórios.' });
+  }
+  if (String(novaPassword).length < 6) {
+    return res
+      .status(400)
+      .json({ erro: 'A nova password tem de ter pelo menos 6 caracteres.' });
+  }
+
+  try {
+    const utilizador = await Utilizador.findById(req.user._id).select(
+      '+password'
+    );
+    if (!utilizador) {
+      return res.status(404).json({ erro: 'Utilizador não encontrado.' });
+    }
+    const valida = await utilizador.compararPassword(passwordAtual);
+    if (!valida) {
+      return res.status(400).json({ erro: 'Password atual incorreta.' });
+    }
+    utilizador.password = novaPassword;
+    await utilizador.save();
+    registarLog(req, 'alterar_password', 'Utilizador', utilizador._id, null);
+    return res.json({ ok: true });
+  } catch (erro) {
+    if (erro.name === 'ValidationError') {
+      return res.status(400).json({ erro: erro.message });
+    }
+    console.error('[password] erro:', erro);
     return res.status(500).json({ erro: 'Erro interno do servidor.' });
   }
 });

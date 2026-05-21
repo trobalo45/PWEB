@@ -1,4 +1,5 @@
 import { guardarPlano, modoAtivo } from '../storage/planosStore.js';
+import { listarErvas } from '../storage/ervasStore.js';
 
 const TIPOS = [
   { id: 'regular', rotulo: 'Regular' },
@@ -20,10 +21,43 @@ const PASSOS = [
   { numero: 4, rotulo: 'Revisão' },
 ];
 
+const SUGESTOES_OPERACAO = {
+  manjericao: { duracaoCiclo: 60, freqRega: 12, volumeRega: 1.5, freqFertilizacao: 7 },
+  hortela: { duracaoCiclo: 45, freqRega: 8, volumeRega: 2, freqFertilizacao: 10 },
+  alecrim: { duracaoCiclo: 90, freqRega: 24, volumeRega: 1, freqFertilizacao: 14 },
+  tomilho: { duracaoCiclo: 75, freqRega: 18, volumeRega: 1.2, freqFertilizacao: 12 },
+};
+
+let ervasCache = null;
+
+function normalizar(s) {
+  return String(s || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+async function carregarErvasCache() {
+  if (ervasCache) return ervasCache;
+  try {
+    ervasCache = await listarErvas();
+  } catch {
+    ervasCache = [];
+  }
+  return ervasCache;
+}
+
+function ervaCorrespondente(slug, ervas) {
+  const alvo = normalizar(slug);
+  return ervas.find((e) => normalizar(e.nome) === alvo) || null;
+}
+
 const estado = {
   passo: 1,
   tipo: null,
   erva: null,
+  sugestaoDescartada: false,
   regular: {
     tempMin: '',
     tempMax: '',
@@ -53,6 +87,7 @@ function repor() {
   estado.passo = 1;
   estado.tipo = null;
   estado.erva = null;
+  estado.sugestaoDescartada = false;
   Object.keys(estado.regular).forEach((k) => (estado.regular[k] = ''));
   Object.keys(estado.emergencia).forEach(
     (k) => (estado.emergencia[k] = '')
@@ -145,8 +180,122 @@ function renderizarPasso1() {
       <span class="rotulo-grupo" style="margin-top: 16px;">Erva aromática</span>
       <div class="grupo-pills" data-grupo="erva">${pillsErvas}</div>
       <p class="mensagem-erro" id="erro-erva" hidden></p>
+
+      <div id="zona-sugestao"></div>
     </div>
   `;
+}
+
+function renderizarCartaoSugestao(erva, slug) {
+  const op = SUGESTOES_OPERACAO[slug] || {};
+  const temIntervalos =
+    erva.tempMin != null &&
+    erva.tempMax != null &&
+    erva.humidadeMin != null &&
+    erva.humidadeMax != null;
+  if (!temIntervalos) return '';
+
+  const itens = [
+    `Temperatura: <span class="mono">${erva.tempMin}°C – ${erva.tempMax}°C</span>`,
+    `Humidade: <span class="mono">${erva.humidadeMin}% – ${erva.humidadeMax}%</span>`,
+  ];
+  if (erva.luminosidadeMin != null && erva.luminosidadeMax != null) {
+    itens.push(
+      `Luminosidade: <span class="mono">${erva.luminosidadeMin} – ${erva.luminosidadeMax} lux</span>`
+    );
+  }
+  if (estado.tipo === 'regular' && op.duracaoCiclo) {
+    itens.push(
+      `Duração sugerida: <span class="mono">${op.duracaoCiclo} dias</span>`
+    );
+    itens.push(
+      `Rega: <span class="mono">${op.freqRega}h / ${op.volumeRega}L</span>`
+    );
+    itens.push(
+      `Fertilização: <span class="mono">${op.freqFertilizacao} dias</span>`
+    );
+  }
+
+  return `
+    <div class="cartao-sugestao" data-sugestao>
+      <h3>
+        <i class="ti ti-leaf" aria-hidden="true"></i>
+        Sugestão para ${escaparHTML(erva.nome)}
+      </h3>
+      <p style="margin: 0 0 4px; font-size: 12px; color: var(--color-text-secondary);">
+        Com base nos dados desta erva, sugerimos os seguintes valores:
+      </p>
+      <ul>
+        ${itens.map((i) => `<li>${i}</li>`).join('')}
+      </ul>
+      <div style="display: flex; gap: 8px;">
+        <button type="button" class="btn btn-primario" data-acao="aplicar-sugestao">
+          Aplicar sugestão
+        </button>
+        <button type="button" class="btn btn-ghost" data-acao="ignorar-sugestao">
+          Ignorar
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+async function atualizarZonaSugestao(elemento) {
+  if (estado.passo !== 1) return;
+  const zona = elemento.querySelector('#zona-sugestao');
+  if (!zona) return;
+  if (!estado.erva || estado.sugestaoDescartada) {
+    zona.innerHTML = '';
+    return;
+  }
+  const ervas = await carregarErvasCache();
+  const erva = ervaCorrespondente(estado.erva, ervas);
+  if (!erva) {
+    zona.innerHTML = '';
+    return;
+  }
+  zona.innerHTML = renderizarCartaoSugestao(erva, estado.erva);
+
+  zona
+    .querySelector('[data-acao="ignorar-sugestao"]')
+    ?.addEventListener('click', () => {
+      estado.sugestaoDescartada = true;
+      zona.innerHTML = '';
+    });
+
+  zona
+    .querySelector('[data-acao="aplicar-sugestao"]')
+    ?.addEventListener('click', () => {
+      aplicarSugestao(erva, estado.erva);
+      zona.innerHTML = `
+        <div class="cartao-sugestao" style="background-color: rgba(126,207,160,0.18);">
+          <p style="margin: 0; font-size: 12px; color: #2b6a47;">
+            ✓ Sugestão aplicada. Os valores serão pré-preenchidos no próximo passo.
+          </p>
+        </div>
+      `;
+    });
+}
+
+function aplicarSugestao(erva, slug) {
+  const op = SUGESTOES_OPERACAO[slug] || {};
+  if (estado.tipo === 'regular' || !estado.tipo) {
+    if (erva.tempMin != null) estado.regular.tempMin = String(erva.tempMin);
+    if (erva.tempMax != null) estado.regular.tempMax = String(erva.tempMax);
+    if (erva.humidadeMin != null)
+      estado.regular.humMin = String(erva.humidadeMin);
+    if (erva.humidadeMax != null)
+      estado.regular.humMax = String(erva.humidadeMax);
+    if (erva.luminosidadeMin != null)
+      estado.regular.luxMin = String(erva.luminosidadeMin);
+    if (erva.luminosidadeMax != null)
+      estado.regular.luxMax = String(erva.luminosidadeMax);
+    if (op.duracaoCiclo) estado.regular.cicloDias = String(op.duracaoCiclo);
+    if (op.freqRega) estado.regular.freqRega = String(op.freqRega);
+    if (op.volumeRega) estado.regular.volumeRega = String(op.volumeRega);
+    if (op.freqFertilizacao)
+      estado.regular.freqFertilizacao = String(op.freqFertilizacao);
+  }
 }
 
 function campoNumero(id, rotulo, valor, sufixo, passo) {
@@ -576,10 +725,15 @@ function ligarEventos(elemento) {
       .querySelectorAll('[data-grupo="erva"] .pill')
       .forEach((botao) => {
         botao.addEventListener('click', () => {
+          if (estado.erva !== botao.dataset.erva) {
+            estado.sugestaoDescartada = false;
+          }
           estado.erva = botao.dataset.erva;
           renderizar(elemento);
         });
       });
+
+    atualizarZonaSugestao(elemento);
   }
 
   if (estado.passo === 2 || estado.passo === 3) {

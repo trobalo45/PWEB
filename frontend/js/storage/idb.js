@@ -1,5 +1,5 @@
 const DB_NOME = 'greenherb';
-const DB_VERSAO = 2;
+const DB_VERSAO = 3;
 const STORES = [
   'planos',
   'lotes',
@@ -8,6 +8,7 @@ const STORES = [
   'alertas',
   'auditoria',
   'utilizadores',
+  'ervas',
 ];
 
 let dbPromise = null;

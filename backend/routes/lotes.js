@@ -185,4 +185,61 @@ router.put('/:id/estado', async (req, res) => {
   }
 });
 
+router.post('/:id/dividir', async (req, res) => {
+  if (!idValido(req.params.id)) {
+    return res.status(400).json({ erro: 'Identificador inválido.' });
+  }
+  const quantidade = Number(req.body?.quantidade);
+  const notas = String(req.body?.notas || '').trim();
+
+  if (!Number.isFinite(quantidade) || quantidade < 1) {
+    return res
+      .status(400)
+      .json({ erro: 'quantidade tem de ser um inteiro >= 1.' });
+  }
+
+  try {
+    const original = await LoteCultivo.findById(req.params.id);
+    if (!original) {
+      return res.status(404).json({ erro: 'Lote não encontrado.' });
+    }
+    if (original.estado !== 'ativo') {
+      return res
+        .status(400)
+        .json({ erro: 'Só é possível dividir lotes ativos.' });
+    }
+    const atual = Number(original.quantidadeAtual ?? original.quantidadeInicial);
+    if (quantidade >= atual) {
+      return res.status(400).json({
+        erro: `A quantidade a separar (${quantidade}) tem de ser inferior à quantidade atual (${atual}).`,
+      });
+    }
+
+    original.quantidadeAtual = atual - quantidade;
+    await original.save();
+
+    const novo = new LoteCultivo({
+      erva: original.erva,
+      planoId: original.planoId,
+      estado: 'ativo',
+      dataInicio: new Date(),
+      quantidadeInicial: quantidade,
+      quantidadeAtual: quantidade,
+      notas: notas || `Lote criado por divisão de #${original._id}`,
+      criadoPor: req.user._id,
+    });
+    await novo.save();
+
+    registarLog(req, 'dividir_lote', 'LoteCultivo', original._id, {
+      quantidade,
+      loteOriginal: String(original._id),
+      loteNovo: String(novo._id),
+    });
+
+    res.status(201).json({ loteOriginal: original, loteNovo: novo });
+  } catch (erro) {
+    tratarErro(res, erro, 'DIVIDIR');
+  }
+});
+
 module.exports = router;

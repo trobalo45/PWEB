@@ -94,6 +94,39 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/auth/password:
+    put:
+      tags: [Autenticação]
+      summary: Alterar a password do utilizador autenticado
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [passwordAtual, novaPassword]
+              properties:
+                passwordAtual:
+                  type: string
+                  format: password
+                novaPassword:
+                  type: string
+                  format: password
+                  minLength: 6
+      responses:
+        '200':
+          description: Password alterada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /api/utilizadores:
     get:
       tags: [Utilizadores]
@@ -183,7 +216,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Tentativa de alterar a própria conta
+          description: Tentativa de alterar a própria conta sem permissão
           content:
             application/json:
               schema:
@@ -192,6 +225,22 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Utilizadores]
+      summary: Eliminar utilizador (Administrador, não a própria conta)
+      security:
+        - bearerAuth: []
+      responses:
+        '204': { description: Utilizador eliminado }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Tentativa de eliminar a própria conta ou sem permissão
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /api/ervas:
     get:
       tags: [Ervas]
@@ -453,6 +502,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoteCultivo'
+  /api/lotes/{id}/dividir:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string }
+    post:
+      tags: [Lotes]
+      summary: Dividir lote ativo em dois (cria um novo lote)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [quantidade]
+              properties:
+                quantidade:
+                  type: integer
+                  minimum: 1
+                  description: Plantas a separar do lote original (deve ser menor que quantidadeAtual)
+                notas:
+                  type: string
+      responses:
+        '201':
+          description: Lote dividido — devolve o lote original atualizado e o novo lote
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  loteOriginal:
+                    $ref: '#/components/schemas/LoteCultivo'
+                  loteNovo:
+                    $ref: '#/components/schemas/LoteCultivo'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /api/tarefas:
     get:
       tags: [Tarefas]

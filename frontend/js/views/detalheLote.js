@@ -3,9 +3,13 @@ import {
   atualizarLote,
 } from '../storage/lotesStore.js';
 import { obterPlano } from '../storage/planosStore.js';
-import { listarTarefas } from '../storage/tarefasStore.js';
+import {
+  listarTarefas,
+  atualizarTarefa,
+} from '../storage/tarefasStore.js';
 import { listarMedicoes } from '../storage/medicoesStore.js';
 import { registar as auditar } from '../storage/auditoriaStore.js';
+import { pedido } from '../api/_http.js';
 
 const ROTULO_ERVA = {
   manjericao: 'Manjericão',
@@ -104,23 +108,41 @@ function tabelaMedicoes(medicoes) {
 function listaTarefas(tarefas) {
   if (!tarefas.length)
     return '<p class="aviso-carregamento">Sem tarefas associadas.</p>';
+
+  const pendentes = tarefas.filter((t) => t.estado !== 'executada');
+  const executadas = tarefas.filter((t) => t.estado === 'executada');
+
+  function linhaPendente(t) {
+    return `
+      <li class="tarefa-item pendente" data-tarefa-id="${escaparHTML(t.id || t._id)}">
+        <span class="badge-pendente">PENDENTE</span>
+        <span style="flex: 1; font-weight: 500;">${escaparHTML(rotuloTarefa(t))}</span>
+        <span class="mono" style="color: var(--color-text-secondary); font-size: 12px;">
+          prevista ${escaparHTML(formatarData(t.dataPrevista))}
+        </span>
+        <button type="button" class="btn btn-primario" data-acao="executar-tarefa" style="padding: 4px 12px; font-size: 12px;">
+          Marcar como executada
+        </button>
+      </li>
+    `;
+  }
+
+  function linhaExecutada(t) {
+    return `
+      <li class="tarefa-item executada">
+        <span class="badge-executada">EXECUTADA</span>
+        <span style="flex: 1;">${escaparHTML(rotuloTarefa(t))}</span>
+        <span class="mono" style="font-size: 12px;">
+          executada ${escaparHTML(formatarData(t.dataExecucao || t.dataPrevista))}
+        </span>
+      </li>
+    `;
+  }
+
   return `
     <ul class="lista-tarefas">
-      ${tarefas
-        .map(
-          (t) => `
-        <li>
-          <span class="chip ${
-            t.estado === 'executada'
-              ? 'chip-estado-concluido'
-              : 'chip-estado-rascunho'
-          }">${escaparHTML(t.estado || 'pendente')}</span>
-          <span>${escaparHTML(rotuloTarefa(t))}</span>
-          <span class="mono" style="color: var(--color-text-secondary); font-size: 12px;">${escaparHTML(formatarData(t.dataPrevista))}</span>
-        </li>
-      `
-        )
-        .join('')}
+      ${pendentes.map(linhaPendente).join('')}
+      ${executadas.map(linhaExecutada).join('')}
     </ul>
   `;
 }
@@ -255,9 +277,14 @@ export async function montar(elemento, _rota, params = []) {
       }
 
       <div class="barra-acoes" style="margin-top: 16px;">
-        <button type="button" class="btn btn-secundario" data-acao="registar-perda" ${
-          lote.estado !== 'ativo' ? 'disabled' : ''
-        }>Registar perda</button>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-secundario" data-acao="registar-perda" ${
+            lote.estado !== 'ativo' ? 'disabled' : ''
+          }>Registar perda</button>
+          <button type="button" class="btn btn-secundario" data-acao="dividir" ${
+            lote.estado !== 'ativo' ? 'disabled' : ''
+          }>Dividir lote</button>
+        </div>
         <div class="barra-acoes-direita">
           <button type="button" class="btn btn-perigo" data-acao="comprometer" ${
             lote.estado !== 'ativo' ? 'disabled' : ''
@@ -282,6 +309,156 @@ export async function montar(elemento, _rota, params = []) {
     elemento
       .querySelector('[data-acao="comprometer"]')
       ?.addEventListener('click', () => mudarEstado('comprometido'));
+    elemento
+      .querySelector('[data-acao="dividir"]')
+      ?.addEventListener('click', abrirModalDividir);
+
+    elemento
+      .querySelectorAll('[data-acao="executar-tarefa"]')
+      .forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const li = btn.closest('[data-tarefa-id]');
+          if (!li) return;
+          const tarefaId = li.dataset.tarefaId;
+          btn.disabled = true;
+          btn.textContent = 'A guardar…';
+          try {
+            await atualizarTarefa(tarefaId, { estado: 'executada' });
+            auditar('tarefa.executar', { id: tarefaId, loteId: lote.id });
+            const recarregadas = await listarTarefas().catch(() => null);
+            if (recarregadas) {
+              tarefasLote.length = 0;
+              recarregadas
+                .filter((t) => String(t.loteId) === String(lote.id))
+                .forEach((t) => tarefasLote.push(t));
+            } else {
+              const alvo = tarefasLote.find(
+                (t) => String(t.id || t._id) === String(tarefaId)
+              );
+              if (alvo) {
+                alvo.estado = 'executada';
+                alvo.dataExecucao = new Date().toISOString();
+              }
+            }
+            pintar();
+          } catch (erro) {
+            btn.disabled = false;
+            btn.textContent = 'Marcar como executada';
+            window.alert(
+              'Não foi possível executar a tarefa: ' + erro.message
+            );
+          }
+        });
+      });
+  }
+
+  function abrirModalDividir() {
+    const disponivel = Number(
+      lote.quantidadeAtual ?? lote.quantidadeInicial ?? 0
+    );
+    const max = Math.max(1, disponivel - 1);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h3 style="margin: 0 0 4px;">Dividir lote</h3>
+        <p style="margin: 0 0 16px; color: var(--color-text-secondary); font-size: 13px;">
+          Lote atual: <strong class="mono">${disponivel}</strong> plantas disponíveis.
+        </p>
+        <div id="msg-dividir"></div>
+        <div class="campo" data-campo="quantidade">
+          <label for="div-quantidade">Quantidade a separar</label>
+          <input id="div-quantidade" type="number" min="1" max="${max}" step="1" required />
+          <p class="mensagem-erro" hidden></p>
+        </div>
+        <div class="campo" data-campo="notas">
+          <label for="div-notas">Notas para o novo lote (opcional)</label>
+          <textarea id="div-notas" rows="3"></textarea>
+        </div>
+        <div class="barra-acoes">
+          <button type="button" class="btn btn-ghost" data-acao="cancelar">Cancelar</button>
+          <div class="barra-acoes-direita">
+            <button type="button" class="btn btn-primario" data-acao="confirmar">Dividir</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    const fechar = () => overlay.remove();
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) fechar();
+    });
+    overlay
+      .querySelector('[data-acao="cancelar"]')
+      .addEventListener('click', fechar);
+
+    overlay
+      .querySelector('[data-acao="confirmar"]')
+      .addEventListener('click', async () => {
+        const qInput = overlay.querySelector('#div-quantidade');
+        const notas = overlay.querySelector('#div-notas').value.trim();
+        const quantidade = Number(qInput.value);
+        const grupoQ = overlay.querySelector('[data-campo="quantidade"]');
+        const spanErroQ = grupoQ.querySelector('.mensagem-erro');
+        grupoQ.classList.remove('erro');
+        spanErroQ.hidden = true;
+
+        if (
+          !Number.isFinite(quantidade) ||
+          quantidade < 1 ||
+          quantidade >= disponivel
+        ) {
+          grupoQ.classList.add('erro');
+          spanErroQ.hidden = false;
+          spanErroQ.textContent = `Indique um valor entre 1 e ${disponivel - 1}.`;
+          return;
+        }
+
+        const botao = overlay.querySelector('[data-acao="confirmar"]');
+        botao.disabled = true;
+        botao.textContent = 'A dividir…';
+        try {
+          const resposta = await pedido(
+            `/lotes/${encodeURIComponent(lote.id)}/dividir`,
+            {
+              method: 'POST',
+              body: JSON.stringify({ quantidade, notas }),
+            }
+          );
+          const loteOriginal = resposta?.loteOriginal;
+          const loteNovo = resposta?.loteNovo;
+          if (loteOriginal) {
+            lote = {
+              ...lote,
+              quantidadeAtual: loteOriginal.quantidadeAtual,
+            };
+          }
+          auditar('lote.dividir', {
+            origem: lote.id,
+            novo: loteNovo?._id,
+            quantidade,
+          });
+          const msg = overlay.querySelector('#msg-dividir');
+          msg.innerHTML = `
+            <div class="mensagem-sucesso-global">
+              Lote dividido com sucesso. Novo lote criado com ${quantidade} plantas.
+              <a href="#detalheLote/${loteNovo?._id}" style="margin-left: 8px;">
+                Ver novo lote
+              </a>
+            </div>
+          `;
+          setTimeout(() => {
+            fechar();
+            pintar();
+          }, 2500);
+        } catch (erro) {
+          botao.disabled = false;
+          botao.textContent = 'Dividir';
+          const msg = overlay.querySelector('#msg-dividir');
+          msg.innerHTML = `<div class="mensagem-erro-global">${escaparHTML(erro.message)}</div>`;
+        }
+      });
   }
 
   function mostrarFormPerda() {

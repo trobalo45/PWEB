@@ -9,11 +9,20 @@ function obterIP(req) {
   );
 }
 
-async function registarLog(req, acao, entidade, entidadeId, detalhes) {
+async function registarLog(req, acao, entidade, entidadeId, detalhes, opcoes = {}) {
   try {
+    const utilizadorIdOverride = Object.prototype.hasOwnProperty.call(
+      opcoes,
+      'utilizadorId'
+    )
+      ? opcoes.utilizadorId
+      : req?.user?._id;
+    const utilizadorNomeOverride =
+      opcoes.utilizadorNome || req?.user?.nome || 'Anónimo';
+
     const log = new LogAuditoria({
-      utilizadorId: req?.user?._id,
-      utilizadorNome: req?.user?.nome || 'Anónimo',
+      utilizadorId: utilizadorIdOverride || undefined,
+      utilizadorNome: utilizadorNomeOverride,
       acao,
       entidade: entidade || '',
       entidadeId: entidadeId ? String(entidadeId) : '',

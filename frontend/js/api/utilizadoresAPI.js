@@ -84,4 +84,9 @@ export async function atualizarUtilizador(id, alteracoes) {
 }
 
 export const obterUtilizador = naoImplementado('utilizadores');
-export const eliminarUtilizador = naoImplementado('utilizadores');
+
+export async function eliminarUtilizador(id) {
+  await pedido(`/utilizadores/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}

@@ -4,6 +4,7 @@ import {
   atualizarUtilizador,
   desativarUtilizador,
   ativarUtilizador,
+  eliminarUtilizador,
 } from '../storage/utilizadoresStore.js';
 import { registar as auditar } from '../storage/auditoriaStore.js';
 
@@ -94,9 +95,10 @@ export async function montar(elemento) {
                   <button type="button" class="btn btn-secundario" data-acao="editar">Editar</button>
                   ${
                     u.ativo
-                      ? '<button type="button" class="btn btn-perigo" data-acao="desativar">Desativar</button>'
+                      ? '<button type="button" class="btn btn-secundario" data-acao="desativar">Desativar</button>'
                       : '<button type="button" class="btn btn-secundario" data-acao="ativar">Ativar</button>'
                   }
+                  <button type="button" class="btn btn-perigo" data-acao="eliminar">Eliminar</button>
                 </td>
               </tr>
             `
@@ -145,7 +147,67 @@ export async function montar(elemento) {
           if (utilizador) abrirModalEditar(utilizador);
         }
       );
+      tr.querySelector('[data-acao="eliminar"]')?.addEventListener(
+        'click',
+        () => {
+          const alvo = utilizadores.find(
+            (u) => String(u.id) === String(id)
+          );
+          if (alvo) abrirModalEliminar(alvo);
+        }
+      );
     });
+  }
+
+  function abrirModalEliminar(u) {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <h3 style="margin: 0 0 8px;">Eliminar conta</h3>
+        <p style="margin: 0 0 16px; color: var(--color-text-secondary); font-size: 13px;">
+          Tens a certeza que queres eliminar a conta de <strong>${escaparHTML(u.nome || '')}</strong>?
+          Esta ação é irreversível.
+        </p>
+        <div class="barra-acoes">
+          <button type="button" class="btn btn-ghost" data-acao="cancelar">Cancelar</button>
+          <div class="barra-acoes-direita">
+            <button type="button" class="btn btn-perigo" data-acao="confirmar">
+              Eliminar definitivamente
+            </button>
+          </div>
+        </div>
+        <div id="msg-eliminar" style="margin-top: 12px;"></div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const fechar = () => overlay.remove();
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) fechar();
+    });
+    overlay.querySelector('[data-acao="cancelar"]').addEventListener('click', fechar);
+    overlay
+      .querySelector('[data-acao="confirmar"]')
+      .addEventListener('click', async () => {
+        const botao = overlay.querySelector('[data-acao="confirmar"]');
+        const msg = overlay.querySelector('#msg-eliminar');
+        botao.disabled = true;
+        botao.textContent = 'A eliminar…';
+        try {
+          await eliminarUtilizador(u.id);
+          auditar('utilizador.eliminar', { id: u.id, email: u.email });
+          utilizadores = utilizadores.filter(
+            (x) => String(x.id) !== String(u.id)
+          );
+          fechar();
+          pintar();
+        } catch (erro) {
+          botao.disabled = false;
+          botao.textContent = 'Eliminar definitivamente';
+          msg.innerHTML = `<div class="mensagem-erro-global">${escaparHTML(erro.message || 'Não foi possível eliminar.')}</div>`;
+        }
+      });
   }
 
   function abrirModalEditar(u) {
